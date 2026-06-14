@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume & Skills | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        .layout { margin-left: 240px; padding: 40px; max-width: 1000px; }
+        .upload-zone {
+            border: 2px dashed var(--accent-primary);
+            border-radius: 16px;
+            padding: 48px;
+            text-align: center;
+            background: var(--bg-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .upload-zone:hover { background: var(--accent-light); }
+        .skills-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+        .skill-tag {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section { display: none; margin-top: 32px; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .status-table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+        .status-table th, .status-table td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border); }
+        .status-icon { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar placeholder -->
+    </aside>
+
+    <main class="layout">
+        <header style="margin-bottom: 32px;">
+            <h1 style="font-size: 1.75rem; margin-bottom: 8px;">Resume & Skills</h1>
+            <p style="color: var(--text-secondary);">Upload your resume to extract skills and start the verification process.</p>
+        </header>
+
+        <!-- SECTION 1: UPLOAD -->
+        <div id="section-upload" class="card">
+            <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                <h3 style="margin-bottom: 8px;">Click to upload or drag & drop</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 24px;">Accepted files: PDF, DOCX, TXT (Max 5MB)</p>
+                <input type="file" id="file-input" hidden accept=".pdf,.docx,.txt" onchange="handleFileSelect(this)">
+                <div id="file-info" style="display: none; align-items: center; justify-content: center; gap: 12px; background: white; padding: 12px; border-radius: 10px; border: 1px solid var(--border); margin: 0 auto; max-width: 300px;">
+                    <span style="color: var(--success);">✓</span>
+                    <span id="filename-display" style="font-weight: 600; font-size: 0.875rem;"></span>
+                </div>
+            </div>
+            
+            <div id="error-upload" class="error-message" style="display: none; justify-content: center; margin-top: 16px;"></div>
+
+            <button id="extract-btn" class="btn btn-primary" style="width: 100%; margin-top: 24px; padding: 14px;" disabled onclick="extractSkills()">
+                Extract Skills
+            </button>
+        </div>
+
+        <!-- SECTION 2: EXTRACTED SKILLS -->
+        <section id="section-extracted" class="section">
+            <div id="skills-categories-container">
+                <!-- Categories will be injected here -->
+            </div>
+
+            <div style="margin-top: 40px; display: flex; gap: 16px; border-top: 1px solid var(--border); padding-top: 32px; align-items: center;">
+                <button class="btn btn-primary" style="flex: 2; padding: 16px; font-size: 1.1rem; box-shadow: 0 10px 20px rgba(124, 58, 237, 0.2);" onclick="window.location.href='interview.html'">
+                    Start Verification Interview
+                </button>
+                <button class="btn btn-secondary" style="flex: 1;" onclick="resetUpload()">Change File</button>
+                <button class="btn" style="flex: 1; background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;" onclick="clearProfile()">Delete Profile</button>
+            </div>
+        </section>
+
+        <div id="global-loader" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 2000; align-items: center; justify-content: center; flex-direction: column; gap: 16px;">
+            <div class="loading-spinner" style="width: 48px; height: 48px;"></div>
+            <p style="font-weight: 600; color: var(--accent-primary);">Analyzing Resume...</p>
+        </div>
+    </main>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let selectedFile = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user) return;
+
+            try {
+                const data = await apiRequest(`/resume/${user.user_id}`);
+                if (data && data.extracted_skills && data.extracted_skills.length > 0) {
+                    renderData(data);
+                }
+            } catch (err) {
+                console.log("No existing resume profile found.");
+            }
+        });
+
+        async function clearProfile() {
+            if (!confirm("Are you sure you want to delete your entire skill profile? This cannot be undone.")) return;
+            
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            try {
+                await apiRequest(`/resume/${user.user_id}`, 'DELETE');
+                
+                // FORCE CLEAR EVERYTHING
+                sessionStorage.removeItem('extracted_skills');
+                document.getElementById('skills-categories-container').innerHTML = '';
+                document.getElementById('section-extracted').style.display = 'none';
+                document.getElementById('section-upload').style.display = 'block';
+                
+                resetUpload();
+                alert("Profile cleared successfully!");
+                location.reload(); 
+            } catch (err) {
+                alert("Failed to delete profile: " + err.message);
+            }
+        }
+
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['pdf', 'docx', 'txt'].includes(ext)) {
+                showError("Invalid file type. Please upload PDF, DOCX, or TXT.");
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                showError("File too large. Maximum size is 5MB.");
+                return;
+            }
+
+            selectedFile = file;
+            document.getElementById('filename-display').textContent = file.name;
+            document.getElementById('file-info').style.display = 'flex';
+            document.getElementById('extract-btn').disabled = false;
+            document.getElementById('error-upload').style.display = 'none';
+        }
+
+        async function extractSkills() {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            const loader = document.getElementById('global-loader');
+            loader.style.display = 'flex';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('candidate_id', user.user_id);
+
+            try {
+                const response = await fetch(`${BASE_URL}/resume/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (!response.ok) throw new Error(data.detail || "Extraction failed");
+                
+                renderData(data);
+                sessionStorage.setItem('extracted_skills', JSON.stringify(data.extracted_skills));
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function renderData(data) {
+            const container = document.getElementById('skills-categories-container');
+            container.innerHTML = '';
+
+            const skills = data.extracted_skills;
+            if (!skills || skills.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:var(--text-secondary); padding: 40px;">No skills extracted. Try a different file.</p>';
+                return;
+            }
+
+            // Group by Category
+            const grouped = {};
+            skills.forEach(skill => {
+                const cat = skill.category || "General Skills";
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(skill);
+            });
+
+            // Sort Categories (Programming Languages first, then others)
+            const sortedCats = Object.keys(grouped).sort((a, b) => {
+                if (a === "Programming Languages") return -1;
+                if (b === "Programming Languages") return 1;
+                return a.localeCompare(b);
+            });
+
+            for (const catName of sortedCats) {
+                const skillList = grouped[catName];
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.style.marginBottom = '20px';
+                card.style.borderLeft = '4px solid var(--accent-primary)';
+                card.innerHTML = `
+                    <h4 style="font-size: 1.1rem; margin-bottom: 16px; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between;">
+                        ${catName}
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: normal;">${skillList.length} items</span>
+                    </h4>
+                    <div class="skills-grid">
+                        ${skillList.map(skill => `
+                            <div class="skill-tag" style="background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary); transition: all 0.2s;">
+                                ${skill.name}
+                                <span style="font-size: 0.7rem; color: var(--accent-primary); font-weight: 800; background: white; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">
+                                    ${skill.confidence}%
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+
+            document.getElementById('section-upload').style.display = 'none';
+            document.getElementById('section-extracted').style.display = 'block';
+            sessionStorage.setItem('extracted_skills', JSON.stringify(skills));
+        }
+
+        function resetUpload() {
+            selectedFile = null;
+            document.getElementById('file-input').value = '';
+            document.getElementById('file-info').style.display = 'none';
+            document.getElementById('extract-btn').disabled = true;
+            document.getElementById('section-upload').style.display = 'block';
+            document.getElementById('section-extracted').style.display = 'none';
+            sessionStorage.removeItem('extracted_skills');
+        }
+
+        function showError(msg) {
+            const err = document.getElementById('error-upload');
+            err.textContent = msg;
+            err.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account | WCI Engine</title>
+    <link rel="stylesheet" href="css/global.css">
+    <style>
+        body {
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .register-card {
+            width: 100%;
+            max-width: 450px;
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(124, 58, 237, 0.1);
+        }
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 14px;
+            padding-top: 22px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+        }
+        .input-group label {
+            position: absolute;
+            left: 14px;
+            top: 16px;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            pointer-events: none;
+        }
+        .input-group input:focus + label,
+        .input-group input:not(:placeholder-shown) + label {
+            top: 6px;
+            font-size: 0.7rem;
+            color: var(--accent-primary);
+            font-weight: 700;
+        }
+        .role-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .role-option {
+            position: relative;
+        }
+        .role-option input {
+            position: absolute;
+            opacity: 0;
+        }
+        .role-label {
+            display: block;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+        .role-option input:checked + .role-label {
+            border-color: var(--accent-primary);
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="register-card">
+        <h2 style="margin-bottom: 8px;">Create Account</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 32px;">Join WCI Engine today.</p>
+
+        <form id="registerForm" onsubmit="handleRegister(event)">
+            <div class="input-group">
+                <input type="text" name="fullname" placeholder=" " required>
+                <label>Full Name</label>
+            </div>
+            
+            <div class="input-group">
+                <input type="email" name="email" placeholder=" " required>
+                <label>Email Address</label>
+            </div>
+
+            <div class="role-selector">
+                <div class="role-option">
+                    <input type="radio" name="role" value="candidate" id="role-cand" checked>
+                    <label for="role-cand" class="role-label">Candidate</label>
+                </div>
+                <div class="role-option">
+                    <input type="radio" name="role" value="recruiter" id="role-rec">
+                    <label for="role-rec" class="role-label">Recruiter</label>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <input type="password" name="password" id="password" placeholder=" " required>
+                <label>Password</label>
+            </div>
+
+            <div class="input-group">
+                <input type="password" name="confirm_password" placeholder=" " required>
+                <label>Confirm Password</label>
+            </div>
+
+            <div id="error-message" class="error-message" style="display: none; margin-bottom: 16px;"></div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 1rem; margin-bottom: 24px;">Register</button>
+        </form>
+
+        <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem;">
+            Already have an account? <a href="index.html" style="color: var(--accent-primary); font-weight: 600; text-decoration: none;">Sign In</a>
+        </p>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Practice AI Interview | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        .interview-layout { display: grid; grid-template-columns: minmax(420px, 42%) minmax(520px, 58%); margin-left: 240px; height: 100vh; overflow: hidden; background: #f8fbff; }
+        .left-panel { background: #07111f; display: flex; flex-direction: column; padding: 18px; color: white; border-right: 1px solid rgba(59, 130, 246, 0.22); gap: 14px; min-width: 0; }
+        .right-panel { background: #fbfdff; padding: 64px 56px 40px; display: flex; flex-direction: column; position: relative; overflow-y: auto; min-width: 0; }
+        
+        .camera-container {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #07111f;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            z-index: 2;
+            border: 2px solid rgba(59, 130, 246, 0.75);
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.35), 0 0 22px rgba(59, 130, 246, 0.18);
+            flex: 0 0 auto;
+        }
+        
+        .avatar-container {
+            flex: 1 1 auto;
+            min-height: 300px;
+            width: 100%;
+            background: radial-gradient(circle at center, #10274a 0%, #07111f 64%, #030712 100%);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #video-feed { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .camera-overlay {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(37, 99, 235, 0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .live-dot { width: 6px; height: 6px; background: #3b82f6; border-radius: 50%; animation: blink 1s infinite; }
+        
+        .agent-label {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(124, 58, 237, 0.2);
+            backdrop-filter: blur(4px);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #a78bfa;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            z-index: 10;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+        .timer-circle { display: none; }
+        .question-box { margin-top: 8px; min-height: 160px; max-width: 860px; }
+        .answer-area { margin-top: 24px; display: flex; flex-direction: column; gap: 14px; max-width: 860px; }
+        textarea { width: 100%; height: 150px; padding: 20px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 1rem; resize: none; }
+        
+        .history-card { padding: 16px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 12px; background: var(--bg-secondary); }
+        
+        .control-btn { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: var(--transition); background: rgba(255,255,255,0.1); color: white; font-size: 1.25rem; }
+        .control-btn.active { background: #3b82f6; }
+        .controls-row { display: flex; gap: 16px; margin-top: 0; flex-wrap: wrap; }
+
+        #transcript-live { font-style: italic; color: var(--accent-primary); margin-top: 12px; font-size: 0.9rem; }
+        
+        /* Premium practice indicator banner */
+        .practice-badge {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        @media (max-width: 1100px) {
+            .interview-layout { grid-template-columns: 1fr; margin-left: 0; height: auto; min-height: 100vh; overflow: auto; }
+            .left-panel { min-height: 760px; }
+            .right-panel { padding: 36px 24px; }
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar placeholder -->
+    </aside>
+
+    <main class="interview-layout">
+        <div class="left-panel">
+            <div class="camera-container">
+                <video id="video-feed" autoplay playsinline muted></video>
+                <div class="camera-overlay">
+                    <div class="live-dot" id="proctoring-dot"></div>
+                    <span id="proctoring-text">CAMERA DISCONNECTED (PRACTICE)</span>
+                </div>
+            </div>
+
+            <div class="avatar-container" id="avatar-canvas-container">
+                <div class="agent-label">PRACTICE COACH: AURA</div>
+            </div>
+            
+            <div id="ai-feedback" style="text-align: center; color: #a78bfa; font-size: 0.85rem; margin: 15px 0; font-family: monospace;">
+                [AURA: LISTENING]
+            </div>
+
+            <div class="controls-row" style="margin-top: auto; justify-content: center;">
+                <button class="control-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+                <button class="control-btn" id="cam-btn" onclick="toggleCam()">📷</button>
+                <button class="btn btn-secondary" onclick="pauseSession()" style="padding: 12px 20px; border-radius: 30px; font-weight: 600;">⏸️ Pause & Save</button>
+                <button class="control-btn active" onclick="endInterview()" style="background: var(--danger);">📞</button>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="progress-bar" style="position: absolute; top: 0; left: 0; border-radius: 0; height: 6px;">
+                <div class="progress-fill" id="interview-progress" style="width: 0%; background: #3b82f6;"></div>
+            </div>
+
+            <div class="question-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="practice-badge" style="margin-bottom: 0;">PRACTICE MODE (UNLIMITED ATTEMPTS)</div>
+                    <button id="fullscreen-toggle" onclick="toggleFullscreen()" style="background: rgba(15, 23, 42, 0.05); color: #0f172a; border: 1px solid rgba(15, 23, 42, 0.1); padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); outline: none;">
+                        <span>🖥️ Page Fitting Mode</span>
+                    </button>
+                </div>
+                <div>
+                    <span id="difficulty-badge" class="badge">--</span>
+                </div>
+                <p id="question-index" style="color: var(--text-secondary); margin-top: 12px; font-weight: 600; font-size: 0.875rem;">Question -- of --</p>
+                <h2 id="question-text" style="margin-top: 16px; line-height: 1.4; font-size: 1.5rem;">Connecting to Aura...</h2>
+            </div>
+
+            <div class="answer-area">
+                <div style="display: flex; gap: 12px; margin-bottom: 8px;">
+                    <button class="tag active" id="mode-voice" onclick="setMode('voice')">🎤 Voice Mode</button>
+                    <button class="tag" id="mode-type" onclick="setMode('type')">⌨️ Type Mode</button>
+                </div>
+
+                <div id="type-input-area" style="display: none;">
+                    <textarea id="answer-text" placeholder="Type your answer here..."></textarea>
+                    <div style="text-align: right; font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+                        Character count: <span id="char-count">0</span>
+                    </div>
+                </div>
+
+                <div id="voice-input-area">
+                    <div style="padding: 40px; border: 2px dashed #3b82f6; border-radius: 12px; text-align: center; background: rgba(59, 130, 246, 0.02);">
+                        <p id="voice-status">Speak naturally. We are transcribing...</p>
+                        <div id="transcript-live"></div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="padding: 16px; font-size: 1.1rem; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);" onclick="submitAnswer()" id="submit-btn">Submit Answer</button>
+            </div>
+
+            <div style="margin-top: 60px;">
+                <h3 style="font-size: 1rem; margin-bottom: 20px; color: var(--text-secondary);">History</h3>
+                <div id="history-list"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Practice Device Setup & Fullscreen Lock Modal -->
+    <div id="lock-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b0f1a; z-index: 9999; align-items: center; justify-content: center; color: white; text-align: center;">
+        <div id="lock-modal-card" style="background: #111827; border: 1px solid rgba(59, 130, 246, 0.3); padding: 40px; border-radius: 16px; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <h1 style="color: #3b82f6; margin-bottom: 16px; font-size: 2rem;">🎙️ Practice AI Interview</h1>
+            <h2 style="color: #ffffff; margin-bottom: 20px; font-size: 1.2rem;">Improve Your Interviewing Skills</h2>
+            <p style="color: #cbd5e1; line-height: 1.6; margin-bottom: 30px; text-align: left;">
+                This is a self-improvement practice session. No proctoring score will be shared with recruiters. Aura will ask you questions based on your skills.
+                <br><br>
+                1. 📷 <strong>Camera & Microphone access</strong> helps Aura customize feedback.
+                <br>
+                2. 🖥️ <strong>Page Fitting Mode</strong> enters fullscreen for a distraction-free experience.
+                <br>
+                3. 🎙️ <strong>Voice Mode</strong> is fully supported!
+            </p>
+            <button class="btn btn-primary" onclick="requestPracticePermission()" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); width: 100%; padding: 16px; font-size: 1.1rem; border: none; font-weight: 700; color: white; cursor: pointer; border-radius: 10px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">
+                Enable Devices & Start Practice
+            </button>
+        </div>
+    </div>
+
+    <!-- Overlay for Start/Continue -->
+    <div id="start-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 15, 26, 0.95); z-index: 3000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+        <div style="background: #111827; border: 1px solid rgba(59, 130, 246, 0.3); padding: 40px; border-radius: 16px; max-width: 400px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <h2 style="margin-bottom: 12px; color: white;">Resume Practice Session?</h2>
+            <p style="color: #cbd5e1; margin-bottom: 24px; line-height: 1.5;">You have an active practice session in progress. Would you like to resume or start a fresh one?</p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="btn btn-primary" onclick="handleStartOverlayDecision(true)" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); width: 100%; padding: 12px; font-weight: 700;">Continue Session 🎙️</button>
+                <button class="btn btn-secondary" onclick="handleStartOverlayDecision(false)" style="background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); width: 100%; padding: 12px; font-weight: 700;">Start New Practice 🔄</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let currentSessionId = null;
+        let isRecording = false;
+        let recognition = null;
+        let currentMode = 'voice';
+        let finalTranscript = '';
+        let camActive = false;
+
+        async function handleStartOverlayDecision(resume) {
+            document.getElementById('start-overlay').style.display = 'none';
+            if (resume) {
+                await requestPracticePermission(true);
+            } else {
+                document.getElementById('lock-modal').style.display = 'flex';
+            }
+        }
+
+        async function requestPracticePermission(isResume = false) {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user) {
+                window.location.href = '../login-candidate.html';
+                return;
+            }
+
+            try {
+                // Request camera and microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('video-feed').srcObject = stream;
+                document.getElementById('cam-btn').classList.add('active');
+                document.getElementById('proctoring-dot').style.backgroundColor = '#10b981';
+                document.getElementById('proctoring-text').textContent = "PRACTICE CAMERA ACTIVE";
+                camActive = true;
+
+                // Request Fullscreen
+                try {
+                    if (document.documentElement.requestFullscreen) {
+                        await document.documentElement.requestFullscreen();
+                    }
+                } catch (fsErr) {
+                    console.warn("Fullscreen request bypassed:", fsErr.message);
+                }
+
+                // Hide lock modal
+                document.getElementById('lock-modal').style.display = 'none';
+
+                // Initialize Speech, camera and Aura
+                initSpeech();
+                initAura();
+
+                if (isResume) {
+                    const resumeSessionId = sessionStorage.getItem('wci_practice_session');
+                    const data = await apiRequest(`/interview/resume/${resumeSessionId}`, 'GET');
+                    currentSessionId = resumeSessionId;
+                    loadQuestion(data);
+                } else {
+                    const skills = JSON.parse(sessionStorage.getItem('extracted_skills')) || [{"name": "Python"}];
+                    const data = await apiRequest('/interview/start', 'POST', {
+                        candidate_id: user.user_id,
+                        skills: skills
+                    });
+                    currentSessionId = data.session_id;
+                    sessionStorage.setItem('wci_practice_session', data.session_id);
+                    loadQuestion(data);
+                }
+
+            } catch (err) {
+                alert("Webcam and microphone access are recommended for practice mode. Details: " + err.message);
+            }
+        }
+
+        function loadQuestion(data) {
+            document.getElementById('char-count').textContent = '0';
+            document.getElementById('question-text').textContent = data.question.text;
+            document.getElementById('difficulty-badge').textContent = data.question.difficulty.toUpperCase();
+            document.getElementById('difficulty-badge').className = `badge badge-${data.question.difficulty}`;
+            document.getElementById('question-index').textContent = `Question ${data.current_index} of ${data.total_questions}`;
+            document.getElementById('interview-progress').style.width = `${(data.current_index / data.total_questions) * 100}%`;
+            
+            if (currentMode === 'voice') startRecording();
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode-voice').classList.toggle('active', mode === 'voice');
+            document.getElementById('mode-type').classList.toggle('active', mode === 'type');
+            document.getElementById('voice-input-area').style.display = mode === 'voice' ? 'block' : 'none';
+            document.getElementById('type-input-area').style.display = mode === 'type' ? 'block' : 'none';
+            
+            if (mode === 'voice') startRecording();
+            else stopRecording();
+        }
+
+        function initSpeech() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.log("Speech recognition not supported");
+                setMode('type');
+                return;
+            }
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                
+                const currentText = finalTranscript + interimTranscript;
+                document.getElementById('transcript-live').textContent = currentText;
+                document.getElementById('answer-text').value = currentText;
+            };
+            
+            recognition.onend = () => {
+                if (currentMode === 'voice' && isRecording) {
+                    try { recognition.start(); } catch(e) {}
+                }
+            };
+
+            if (currentMode === 'voice') {
+                startRecording();
+            }
+        }
+
+        function startRecording() {
+            if (recognition && !isRecording) {
+                try {
+                    recognition.start();
+                    isRecording = true;
+                } catch(e) {}
+            }
+        }
+
+        function stopRecording() {
+            if (recognition && isRecording) {
+                isRecording = false;
+                recognition.stop();
+            }
+        }
+
+        async function submitAnswer() {
+            const btn = document.getElementById('submit-btn');
+            const answer = document.getElementById('answer-text').value;
+            
+            stopRecording();
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading-spinner"></div>';
+
+            try {
+                const data = await apiRequest('/interview/answer', 'POST', {
+                    session_id: currentSessionId,
+                    answer_text: answer
+                });
+
+                document.getElementById('ai-feedback').textContent = data.question ? "Excellent, moving to next question." : "Interview completed! Loading report...";
+                
+                addToHistory(answer, "Successfully submitted in Practice Mode.");
+
+                if (data.question) {
+                    loadQuestion(data);
+                } else {
+                    window.location.href = `report.html?session_id=${currentSessionId}`;
+                }
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Submit Answer';
+                document.getElementById('answer-text').value = '';
+                document.getElementById('transcript-live').textContent = '';
+                finalTranscript = '';
+            }
+        }
+
+        function addToHistory(ans, feedback) {
+            const list = document.getElementById('history-list');
+            const card = document.createElement('div');
+            card.className = 'history-card';
+            card.innerHTML = `
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;">Your Answer:</div>
+                <div style="margin-bottom: 12px;">${ans || '[Empty Answer]'}</div>
+                <div style="font-size: 0.8rem; color: #3b82f6;">Practice Log:</div>
+                <div style="font-size: 0.875rem;">Saved to Practice Database.</div>
+            `;
+            list.prepend(card);
+        }
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('video-feed').srcObject = stream;
+                document.getElementById('cam-btn').classList.add('active');
+                document.getElementById('proctoring-dot').style.backgroundColor = '#10b981';
+                document.getElementById('proctoring-text').textContent = "PRACTICE CAMERA ACTIVE";
+                camActive = true;
+            } catch (err) {
+                console.log("Practice Mode allowed without webcam.");
+            }
+        }
+
+        function pauseSession() {
+            stopRecording();
+            alert("Your Practice session has been paused and saved. You can safely exit and resume it later!");
+            window.location.href = 'dashboard.html';
+        }
+
+        // --- PROFESSIONAL AI AGENT: AURA (SYNC ENGINE) ---
+        let scene, camera, renderer, controls;
+        let auraModel = null;
+        let mouthMesh = null;
+        let morphCapableMeshes = [];
+        let isSpeaking = false;
+        let speechStartTime = 0;
+        let interviewStartedAt = 0;
+
+        function initAura() {
+            const container = document.getElementById('avatar-canvas-container');
+            if (!container) return;
+
+            // Show loading status
+            const loaderStatus = document.createElement('div');
+            loaderStatus.id = "aura-loader";
+            loaderStatus.style = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#3b82f6; font-family:monospace; font-weight:bold; animation: pulse 1s infinite;";
+            loaderStatus.innerText = "INITIALIZING AURA...";
+            container.appendChild(loaderStatus);
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0.5, 3.0);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 0.5, 0);
+            controls.enableDamping = true;
+
+            scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(2, 5, 5);
+            scene.add(dirLight);
+
+            const loader = new THREE.GLTFLoader();
+            const modelPath = '../assets/AURA_avatar.glb'; 
+
+            loader.load(modelPath, (gltf) => {
+                if (loaderStatus) loaderStatus.remove();
+                auraModel = gltf.scene;
+                auraModel.position.set(0, -1.0, 0);
+                auraModel.scale.set(2.0, 2.0, 2.0);
+                scene.add(auraModel);
+                
+                let foundMorph = false;
+                auraModel.traverse((obj) => {
+                    if (obj.isMesh && obj.name === "Mouth_Mesh") {
+                        mouthMesh = obj;
+                    }
+                    
+                    if (obj.isMesh && obj.morphTargetInfluences && obj.morphTargetDictionary) {
+                        const keys = Object.keys(obj.morphTargetDictionary);
+                        
+                        const mouthOpenKeys = keys.filter(k => {
+                            const kl = k.toLowerCase();
+                            return kl.includes("mouthopen") || 
+                                   kl.includes("jawopen") || 
+                                   kl.includes("viseme_o") || 
+                                   kl.includes("mouth_open") ||
+                                   kl.includes("jaw_open") ||
+                                   kl.includes("open") ||
+                                   kl.includes("talk") ||
+                                   kl.includes("lip");
+                        });
+                        
+                        const smileKeys = keys.filter(k => {
+                            const kl = k.toLowerCase();
+                            return kl.includes("smile") || kl.includes("mouthsmile");
+                        });
+
+                        if (mouthOpenKeys.length > 0) {
+                            foundMorph = true;
+                            const mouthIndices = mouthOpenKeys.map(k => obj.morphTargetDictionary[k]);
+                            const smileIndices = smileKeys.map(k => obj.morphTargetDictionary[k]);
+                            morphCapableMeshes.push({
+                                mesh: obj,
+                                mouthIndices: mouthIndices,
+                                smileIndices: smileIndices
+                            });
+                        }
+                    }
+                });
+                
+                if (!foundMorph) {
+                    auraModel.traverse((obj) => {
+                        if (obj.isMesh && obj.morphTargetInfluences && obj.morphTargetDictionary) {
+                            const indices = Object.values(obj.morphTargetDictionary);
+                            if (indices.length > 0) {
+                                morphCapableMeshes.push({
+                                    mesh: obj,
+                                    mouthIndices: [indices[0]],
+                                    smileIndices: indices[1] !== undefined ? [indices[1]] : []
+                                });
+                            }
+                        }
+                    });
+                }
+            }, undefined, (error) => {
+                console.error("Aura Load Error:", error);
+                if (loaderStatus) loaderStatus.innerText = "AURA OFFLINE";
+                const geom = new THREE.SphereGeometry(0.5, 32, 32);
+                const mat = new THREE.MeshPhongMaterial({ color: 0x3b82f6, wireframe: true });
+                const fallback = new THREE.Mesh(geom, mat);
+                fallback.position.y = 0.5;
+                scene.add(fallback);
+                auraModel = fallback;
+            });
+
+            function animate() {
+                requestAnimationFrame(animate);
+                if (controls) controls.update();
+                
+                const now = Date.now();
+                if (auraModel) {
+                    auraModel.rotation.y = Math.sin(now * 0.0004) * 0.06;
+                    auraModel.position.y = -1.1 + Math.sin(now * 0.0008) * 0.01;
+
+                    const elapsed = (now - speechStartTime) / 1000;
+                    
+                    const base = Math.abs(Math.sin(elapsed * 4.5 * Math.PI));
+                    const wobble = Math.abs(Math.sin(elapsed * 9.0 * Math.PI)) * 0.4;
+                    const targetAmp = isSpeaking ? ((base + wobble) / 1.4) : 0;
+
+                    if (morphCapableMeshes.length > 0) {
+                        morphCapableMeshes.forEach(item => {
+                            const influences = item.mesh.morphTargetInfluences;
+                            if (influences) {
+                                item.mouthIndices.forEach(idx => {
+                                    influences[idx] = THREE.MathUtils.lerp(influences[idx], targetAmp, isSpeaking ? 0.35 : 0.2);
+                                });
+                                item.smileIndices.forEach(idx => {
+                                    influences[idx] = THREE.MathUtils.lerp(influences[idx], isSpeaking ? 0.3 : 0, 0.05);
+                                });
+                            }
+                        });
+                    } else if (mouthMesh && mouthMesh.morphTargetInfluences) {
+                        if (isSpeaking) {
+                            mouthMesh.morphTargetInfluences[0] = THREE.MathUtils.lerp(mouthMesh.morphTargetInfluences[0], targetAmp, 0.35);
+                            mouthMesh.morphTargetInfluences[1] = THREE.MathUtils.lerp(mouthMesh.morphTargetInfluences[1], 0.3, 0.05);
+                        } else {
+                            mouthMesh.morphTargetInfluences[0] = THREE.MathUtils.lerp(mouthMesh.morphTargetInfluences[0], 0, 0.2);
+                        }
+                    }
+                }
+                
+                if (renderer && scene && camera) renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        function speakText(text) {
+            const feedback = document.getElementById('ai-feedback');
+            feedback.innerHTML = "[AURA: SPEAKING...]";
+            feedback.style.color = "#3b82f6";
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.88;
+            utterance.pitch = 1.15;
+
+            const voices = window.speechSynthesis.getVoices();
+            const preferred = voices.find(v => (v.name.includes("Female") || v.name.includes("Zira") || v.name.includes("Google US English")));
+            if (preferred) utterance.voice = preferred;
+
+            utterance.onstart = () => { 
+                isSpeaking = true; 
+                speechStartTime = Date.now();
+            };
+            utterance.onend = () => { 
+                isSpeaking = false; 
+                feedback.innerHTML = "[AURA: LISTENING]";
+                feedback.style.color = "#3b82f6";
+            };
+
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        }
+
+        const originalLoadQuestion = loadQuestion;
+        loadQuestion = function(data) {
+            originalLoadQuestion(data);
+            const qText = data.question.text;
+            if (qText) {
+                setTimeout(() => speakText(qText), 1500);
+            }
+        };
+
+        window.addEventListener('load', async () => {
+            interviewStartedAt = Date.now();
+            
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user) {
+                window.location.href = '../login-candidate.html';
+                return;
+            }
+
+            try {
+                const activeCheck = await apiRequest(`/interview/active-session/${user.user_id}?session_type=practice`, 'GET');
+                if (activeCheck && activeCheck.has_active) {
+                    sessionStorage.setItem('wci_practice_session', activeCheck.session_id);
+                    document.getElementById('start-overlay').style.display = 'flex';
+                } else {
+                    document.getElementById('lock-modal').style.display = 'flex';
+                }
+            } catch (err) {
+                document.getElementById('lock-modal').style.display = 'flex';
+            }
+
+            const textInput = document.getElementById('answer-text');
+            if (textInput) {
+                textInput.addEventListener('input', () => {
+                    document.getElementById('char-count').textContent = textInput.value.length;
+                });
+            }
+        });
+
+        function toggleMic() { document.getElementById('mic-btn').classList.toggle('active'); }
+        function toggleCam() { 
+            const video = document.getElementById('video-feed');
+            const btn = document.getElementById('cam-btn');
+            if (camActive) {
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                    video.srcObject = null;
+                }
+                btn.classList.remove('active');
+                document.getElementById('proctoring-dot').style.backgroundColor = '#ef4444';
+                document.getElementById('proctoring-text').textContent = "PRACTICE CAMERA DISCONNECTED";
+                camActive = false;
+            } else {
+                initCamera();
+            }
+        }
+        async function endInterview() {
+            if (confirm("Exit practice session?")) window.location.href = 'dashboard.html';
+        }
+
+        // --- FULLSCREEN PAGE FITTING CONTROLS ---
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().then(() => {
+                    updateFullscreenUI(true);
+                }).catch(err => {
+                    console.warn(`Fullscreen activation failed: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    updateFullscreenUI(false);
+                });
+            }
+        }
+
+        function updateFullscreenUI(isFullscreen) {
+            const btn = document.getElementById('fullscreen-toggle');
+            if (btn) {
+                if (isFullscreen) {
+                    btn.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
+                    btn.style.color = "white";
+                    btn.style.border = "none";
+                    btn.innerHTML = `<span>🟢 Page Fitted (Fullscreen)</span>`;
+                } else {
+                    btn.style.background = "rgba(15, 23, 42, 0.05)";
+                    btn.style.color = "#0f172a";
+                    btn.style.border = "1px solid rgba(15, 23, 42, 0.1)";
+                    btn.innerHTML = `<span>🖥️ Page Fitting Mode</span>`;
+                }
+            }
+        }
+
+        // Keep UI in sync with native browser fullscreen state
+        document.addEventListener('fullscreenchange', () => {
+            updateFullscreenUI(!!document.fullscreenElement);
+        });
+    </script>
+</body>
+</html>

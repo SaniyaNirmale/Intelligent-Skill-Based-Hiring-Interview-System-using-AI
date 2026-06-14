@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        .dashboard-layout { display: flex; margin-left: 240px; padding: 40px; gap: 32px; transition: margin-left 0.3s; }
+        .main-col { flex: 1; display: flex; flex-direction: column; gap: 32px; }
+        .side-col { width: 320px; display: flex; flex-direction: column; gap: 32px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .greeting { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
+        .header-actions { display: flex; gap: 16px; align-items: center; }
+        .notification-bell { font-size: 1.25rem; color: var(--text-secondary); cursor: pointer; }
+        .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 16px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+        td { padding: 16px; font-size: 0.875rem; border-bottom: 1px solid var(--border); }
+        .breakdown-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.875rem; }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Placeholder (Populated via sidebar.js) -->
+    <aside id="sidebar">
+        <div class="sidebar-logo"><span class="logo-main">WCI Engine</span><span class="logo-sub">Workforce Credibility Index</span></div>
+        <nav class="nav-list">
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="resume.html" class="nav-link">Resume & Skills</a>
+            <a href="interview.html" class="nav-link">Interview</a>
+            <a href="report.html" class="nav-link">Reports</a>
+            <a href="skill-graph.html" class="nav-link">Skill Graph</a>
+            <a href="analytics.html" class="nav-link">Analytics</a>
+            <a href="recommendations.html" class="nav-link">Recommendations</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile"><div class="user-avatar">?</div><div class="user-info"><span class="user-name">Loading...</span><span class="user-role">Candidate</span></div></div>
+            <button class="btn logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+    </aside>
+
+    <main class="dashboard-layout">
+        <div class="main-col">
+            <div class="header-row">
+                <h1 class="greeting" id="greetingText">Good morning, -- 👋</h1>
+                <div class="header-actions">
+                    <span class="notification-bell">🔔</span>
+                    <div class="avatar" id="headerAvatar">?</div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="card stat-card" id="stat-overall">
+                    <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Overall Skill Score</span>
+                    <div class="stat-value mono" id="val-score">--</div>
+                </div>
+                <div class="card stat-card" id="stat-interviews">
+                    <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Interviews Completed</span>
+                    <div class="stat-value mono" id="val-count">0</div>
+                </div>
+                <div class="card stat-card" id="stat-shortcuts">
+                    <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Shortcut Alerts</span>
+                    <div id="val-shortcuts">--</div>
+                </div>
+                <div class="card stat-card" id="stat-reports">
+                    <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Reports Generated</span>
+                    <div class="stat-value mono" id="val-reports">0</div>
+                </div>
+            </div>
+
+            <section id="content-area">
+                <div class="loading-spinner" style="margin: 40px auto;"></div>
+            </section>
+        </div>
+
+        <div class="side-col" id="right-panel" style="display: none;">
+            <div class="card">
+                <h3 style="margin-bottom: 20px; font-size: 1rem;">Skill Breakdown</h3>
+                <div id="breakdown-container"></div>
+            </div>
+
+            <div class="card" style="background: var(--bg-sidebar); color: white; border: none;">
+                <h3 style="margin-bottom: 12px; font-size: 1rem;">Recommended Next Step</h3>
+                <p id="recommendation-text" style="font-size: 0.875rem; color: var(--text-sidebar); line-height: 1.6; margin-bottom: 0;"></p>
+            </div>
+        </div>
+    </main>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user) return;
+
+            // Set Header Name & Greeting
+            const hour = new Date().getHours();
+            const timeGreeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+            document.getElementById('greetingText').textContent = `${timeGreeting}, ${user.name.split(' ')[0]} 👋`;
+            document.getElementById('headerAvatar').textContent = user.name.charAt(0).toUpperCase();
+
+            const contentArea = document.getElementById('content-area');
+
+            try {
+                const data = await apiRequest(`/candidate/dashboard/${user.user_id}`);
+                
+                // Populate Stats
+                document.getElementById('val-score').textContent = data.overall_score || '—';
+                document.getElementById('val-count').textContent = data.interviews_completed || 0;
+                document.getElementById('val-reports').textContent = data.reports_generated || 0;
+                
+                const shortcutsEl = document.getElementById('val-shortcuts');
+                if (data.shortcut_alerts === 0) {
+                    shortcutsEl.innerHTML = '<span class="badge badge-easy">Clean</span>';
+                } else {
+                    shortcutsEl.innerHTML = `<span class="stat-value mono" style="color: var(--danger)">${data.shortcut_alerts}</span>`;
+                }
+
+
+                if (data.interviews_completed === 0) {
+                    showEmptyState();
+                } else {
+                    showInterviews(data.recent_interviews);
+                    showBreakdown(data.score_breakdown);
+                    document.getElementById('recommendation-text').textContent = data.next_recommendation;
+                    document.getElementById('right-panel').style.display = 'flex';
+                }
+
+            } catch (err) {
+                contentArea.innerHTML = `<div class="empty-state"><span class="empty-illustration">⚠️</span><p>${err.message}</p></div>`;
+            }
+        });
+
+        function showEmptyState() {
+            document.getElementById('content-area').innerHTML = `
+                <div class="card empty-state">
+                    <span class="empty-illustration">🎯</span>
+                    <h2 style="font-size: 1.25rem;">You haven't taken any interviews yet.</h2>
+                    <p style="color: var(--text-secondary); max-width: 400px;">To calculate your Workforce Credibility Index, we need to analyze your first session.</p>
+                    <button class="btn btn-primary" onclick="window.location.href='resume.html'" style="margin-top: 12px;">Upload Resume to Get Started</button>
+                </div>
+            `;
+        }
+
+        function showInterviews(interviews) {
+            let rows = interviews.map(i => {
+                const isCompleted = i.status === 'completed';
+                const statusBadge = isCompleted 
+                    ? '<span class="badge badge-info">Completed</span>' 
+                    : '<span class="badge badge-medium">In Progress</span>';
+                
+                let resumeUrl = 'interview.html';
+                let sessionTypeKey = 'wci_session';
+                if (i.session_type === 'practice') {
+                    resumeUrl = 'practice-interview.html';
+                    sessionTypeKey = 'wci_practice_session';
+                } else if (i.session_type === 'official') {
+                    resumeUrl = `official-interview.html?session_id=${i.session_id}`;
+                }
+
+                const actionButton = isCompleted
+                    ? `<button class="btn btn-secondary" style="padding: 6px 12px;" onclick="window.location.href='report.html?report_id=${i.report_id}'">View Report</button>`
+                    : `<button class="btn btn-primary" style="padding: 6px 12px; background: ${i.session_type === 'official' ? 'var(--danger)' : i.session_type === 'practice' ? '#3b82f6' : 'var(--accent-primary)'}; color: white;" onclick="sessionStorage.setItem('${sessionTypeKey}', '${i.session_id}'); window.location.href='${resumeUrl}'">Resume</button>`;
+                
+                const displayScore = i.score && i.score !== '--' ? `${i.score}%` : '--%';
+                const typeLabel = i.session_type === 'official' ? 'official' : i.session_type === 'practice' ? 'practice' : 'legacy';
+                const typeBadgeClass = i.session_type === 'official' ? 'badge-hard' : i.session_type === 'practice' ? 'badge-info' : 'badge-easy';
+
+                return `
+                    <tr>
+                        <td>
+                            ${i.date}
+                            <span class="badge ${typeBadgeClass}" style="font-size: 0.6rem; margin-left: 6px; padding: 2px 6px; vertical-align: middle;">${typeLabel}</span>
+                        </td>
+                        <td>${i.skills.map(s => {
+                            const skillName = typeof s === 'object' && s !== null ? (s.name || s.label || '') : s;
+                            return `<span class="tag">${skillName}</span>`;
+                        }).join(' ')}</td>
+                        <td class="mono" style="font-weight: 700;">${displayScore}</td>
+                        <td>${i.shortcut ? '⚠️ <span style="color: var(--danger)">Alert</span>' : '✅ <span style="color: var(--success)">None</span>'}</td>
+                        <td>${statusBadge}</td>
+                        <td>${actionButton}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('content-area').innerHTML = `
+                <div class="table-container">
+                    <div style="padding: 20px; font-weight: 700; text-align: left;">Recent Interviews</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Skills Tested</th>
+                                <th>Score</th>
+                                <th>Shortcut</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function showBreakdown(scores) {
+            const container = document.getElementById('breakdown-container');
+            
+            if (scores.conceptual === 0 && scores.practical === 0 && scores.behavioral === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 20px 0; color: var(--text-secondary);">
+                        <div style="font-size: 2rem; margin-bottom: 8px;">📊</div>
+                        <p style="font-size: 0.875rem;">Complete your first interview to see your skill breakdown.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const sections = [
+                { label: 'Conceptual', val: scores.conceptual },
+                { label: 'Practical', val: scores.practical },
+                { label: 'Behavioral', val: scores.behavioral }
+            ];
+
+            container.innerHTML = sections.map(s => `
+                <div style="margin-bottom: 20px; text-align: left;">
+                    <div class="breakdown-row">
+                        <span style="font-weight: 500;">${s.label}</span>
+                        <span class="mono">${s.val}%</span>
+                    </div>
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${s.val}%"></div></div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
+

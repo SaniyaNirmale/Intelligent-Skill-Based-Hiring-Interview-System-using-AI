@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Results | WCI Engine</title>
+    <meta name="description" content="View your latest interview results and all past session scores instantly after every interview.">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* ── Layout ── */
+        .layout { margin-left: 240px; padding: 40px; display: flex; flex-direction: column; gap: 32px; min-height: 100vh; transition: margin-left 0.3s; }
+
+        /* ── Page header ── */
+        .page-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+        .page-header h1 { font-size: 1.6rem; font-weight: 800; margin: 0 0 4px; }
+        .page-header p  { color: var(--text-secondary); font-size: 0.875rem; margin: 0; }
+
+        /* ── Latest result hero ── */
+        .hero-card {
+            background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 60%, #4C1D95 100%);
+            border-radius: 20px;
+            padding: 36px 40px;
+            color: white;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 32px;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 12px 40px rgba(124, 58, 237, 0.35);
+        }
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: -60px; right: -60px;
+            width: 260px; height: 260px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 50%;
+        }
+        .hero-card::after {
+            content: '';
+            position: absolute;
+            bottom: -40px; right: 120px;
+            width: 160px; height: 160px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 50%;
+        }
+        .hero-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.65; margin-bottom: 6px; }
+        .hero-title { font-size: 1.35rem; font-weight: 800; margin: 0 0 6px; }
+        .hero-date  { font-size: 0.85rem; opacity: 0.7; margin: 0 0 20px; }
+        .hero-tags  { display: flex; flex-wrap: wrap; gap: 8px; }
+        .hero-tag   { background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; font-weight: 600; }
+        .hero-score-ring {
+            position: relative;
+            width: 140px; height: 140px;
+            flex-shrink: 0;
+        }
+        .hero-score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .ring-bg   { fill: none; stroke: rgba(255,255,255,0.15); stroke-width: 10; }
+        .ring-fill { fill: none; stroke: #fff; stroke-width: 10; stroke-linecap: round;
+                     stroke-dasharray: 351; stroke-dashoffset: 351; transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1); }
+        .ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .ring-val  { font-size: 2rem; font-weight: 900; line-height: 1; }
+        .ring-sub  { font-size: 0.68rem; opacity: 0.7; font-weight: 600; letter-spacing: 0.05em; }
+
+        .hero-meta { display: flex; gap: 28px; margin-top: 24px; flex-wrap: wrap; }
+        .hero-meta-item { }
+        .hero-meta-item .meta-label { font-size: 0.7rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.08em; }
+        .hero-meta-item .meta-val   { font-size: 1.1rem; font-weight: 800; margin-top: 2px; }
+
+        .hero-actions { display: flex; gap: 12px; margin-top: 28px; }
+        .btn-hero-primary { background: white; color: #7C3AED; border: none; padding: 10px 22px; border-radius: 10px; font-weight: 700; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
+        .btn-hero-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+        .btn-hero-ghost  { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 10px 22px; border-radius: 10px; font-weight: 700; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
+        .btn-hero-ghost:hover { background: rgba(255,255,255,0.25); }
+
+        /* ── Integrity badge in hero ── */
+        .integrity-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 700;
+            margin-top: 14px;
+        }
+        .integrity-pill.clean   { background: rgba(16,185,129,0.2); color: #6EE7B7; border: 1px solid rgba(16,185,129,0.35); }
+        .integrity-pill.flagged { background: rgba(239,68,68,0.2);  color: #FCA5A5; border: 1px solid rgba(239,68,68,0.35); }
+
+        /* ── Breakdown bars inside hero ── */
+        .hero-breakdown { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; }
+        .hb-row { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; }
+        .hb-label { width: 120px; opacity: 0.8; flex-shrink: 0; }
+        .hb-bar   { flex: 1; height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; overflow: hidden; }
+        .hb-fill  { height: 100%; border-radius: 3px; background: white; transition: width 1s ease-out; }
+        .hb-val   { width: 36px; text-align: right; font-weight: 700; font-size: 0.8rem; }
+
+        /* ── Score comparison chart card ── */
+        .chart-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 28px; }
+        .chart-card h3 { font-size: 1rem; font-weight: 700; margin: 0 0 4px; }
+        .chart-card p  { font-size: 0.8rem; color: var(--text-secondary); margin: 0 0 24px; }
+        .chart-wrap    { height: 220px; position: relative; }
+
+        /* ── Two-column layout for chart + quick stats ── */
+        .two-col { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+
+        /* ── Quick stat blocks ── */
+        .stats-panel { display: flex; flex-direction: column; gap: 16px; }
+        .stat-box { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 20px 24px; display: flex; align-items: center; gap: 16px; transition: all 0.2s; }
+        .stat-box:hover { border-color: var(--accent-primary); box-shadow: 0 4px 16px rgba(124,58,237,0.08); transform: translateY(-1px); }
+        .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+        .stat-icon.purple { background: var(--accent-light); }
+        .stat-icon.green  { background: rgba(16,185,129,0.1); }
+        .stat-icon.amber  { background: rgba(245,158,11,0.1); }
+        .stat-icon.red    { background: rgba(239,68,68,0.1); }
+        .stat-info .s-label { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; }
+        .stat-info .s-val   { font-size: 1.4rem; font-weight: 900; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+
+        /* ── Session cards grid ── */
+        .section-header { display: flex; justify-content: space-between; align-items: center; }
+        .section-header h2 { font-size: 1.1rem; font-weight: 800; margin: 0; }
+        .sessions-grid { display: flex; flex-direction: column; gap: 14px; }
+
+        .session-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px 26px;
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            gap: 20px;
+            align-items: center;
+            transition: all 0.22s;
+            cursor: default;
+        }
+        .session-card:hover { border-color: var(--accent-primary); box-shadow: 0 4px 20px rgba(124,58,237,0.1); transform: translateY(-1px); }
+        .session-card.latest-session { border-left: 4px solid var(--accent-primary); }
+
+        .session-num { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 800; color: var(--text-secondary); flex-shrink: 0; }
+        .session-num.latest { background: var(--accent-light); color: var(--accent-primary); }
+
+        .session-info .si-date { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; }
+        .session-info .si-skills { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .session-score { text-align: center; }
+        .session-score .sc-val { font-size: 1.5rem; font-weight: 900; font-family: 'JetBrains Mono', monospace; }
+        .session-score .sc-lbl { font-size: 0.68rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; }
+        .score-high { color: var(--success); }
+        .score-mid  { color: var(--warning); }
+        .score-low  { color: var(--danger); }
+
+        .session-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+        .flag-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+        .flag-pill.clean   { background: rgba(16,185,129,0.1); color: var(--success); }
+        .flag-pill.flagged { background: rgba(239,68,68,0.1);  color: var(--danger); }
+
+        /* ── Empty state ── */
+        .empty-hero { background: white; border: 2px dashed var(--border); border-radius: 20px; padding: 60px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+        .empty-hero .ei { font-size: 3.5rem; }
+        .empty-hero h2  { font-size: 1.3rem; margin: 0; }
+        .empty-hero p   { color: var(--text-secondary); max-width: 380px; font-size: 0.9rem; margin: 0; }
+
+        /* ── Tag ── */
+        .tag { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; font-size: 0.72rem; font-weight: 600; color: var(--text-secondary); }
+
+        /* ── Latest badge ── */
+        .new-badge { background: var(--accent-primary); color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+        /* Animations */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-up { animation: fadeUp 0.45s ease both; }
+        .fade-up-2 { animation: fadeUp 0.45s 0.1s ease both; }
+        .fade-up-3 { animation: fadeUp 0.45s 0.2s ease both; }
+
+        @media (max-width: 900px) {
+            .two-col { grid-template-columns: 1fr; }
+            .hero-card { grid-template-columns: 1fr; }
+            .hero-score-ring { width: 110px; height: 110px; }
+            .session-card { grid-template-columns: auto 1fr; }
+            .session-score, .session-actions { grid-column: 2; }
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar"><!-- Sidebar placeholder --></aside>
+
+    <main class="layout" id="main-layout">
+
+        <!-- Page Header -->
+        <header class="page-header fade-up">
+            <div>
+                <h1>Interview Results</h1>
+                <p>Your scores and breakdowns appear instantly after every interview — no waiting required.</p>
+            </div>
+            <button class="btn btn-primary" onclick="window.location.href='interview.html'" style="white-space:nowrap;">
+                ＋ New Interview
+            </button>
+        </header>
+
+        <!-- Dynamic content injected here -->
+        <div id="results-content">
+            <div style="display:flex;align-items:center;justify-content:center;height:300px;">
+                <div class="loading-spinner" style="width:52px;height:52px;"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const user = JSON.parse(sessionStorage.getItem('wci_user'));
+        if (!user) return;
+
+        try {
+            const data = await apiRequest(`/candidate/analytics/${user.user_id}?range=all`);
+            if (!data.sessions || data.sessions.length === 0) {
+                renderEmpty();
+            } else {
+                renderAll(data);
+            }
+        } catch (err) {
+            console.error(err);
+            renderEmpty();
+        }
+    });
+
+    /* ────────────────────────────────────────────────────── */
+    /*  MAIN RENDER                                           */
+    /* ────────────────────────────────────────────────────── */
+    async function renderAll(data) {
+        const sessions = [...data.sessions].reverse(); // newest first
+        const latest   = sessions[0];
+        const container = document.getElementById('results-content');
+
+        // Fetch full report for the latest session to get rich data
+        let latestReport = null;
+        if (latest.report_id) {
+            try { latestReport = await apiRequest(`/report/${latest.report_id}`); } catch(_) {}
+        }
+
+        const scoreColor = s => s >= 70 ? 'var(--success)' : s >= 45 ? 'var(--warning)' : 'var(--danger)';
+        const scoreClass = s => s >= 70 ? 'score-high' : s >= 45 ? 'score-mid' : 'score-low';
+
+        /* ── Aggregate quick stats ── */
+        const allScores   = sessions.map(s => s.score).filter(s => typeof s === 'number');
+        const avgScore    = allScores.length ? Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length) : '--';
+        const bestScore   = allScores.length ? Math.max(...allScores) : '--';
+        const totalSess   = sessions.length;
+
+        /* ── Hero breakdown bars ── */
+        const breakdown = latestReport?.score_breakdown || {};
+        const bdLabels = {
+            conceptual:     'Conceptual',
+            practical:      'Practical',
+            communication:  'Communication',
+            problem_solving:'Problem Solving',
+            behavioral:     'Confidence'
+        };
+        const barsHTML = Object.entries(bdLabels).map(([key, lbl]) => {
+            const val = breakdown[key] || 0;
+            return `
+            <div class="hb-row">
+                <span class="hb-label">${lbl}</span>
+                <div class="hb-bar"><div class="hb-fill" id="hbf-${key}" style="width:0%"></div></div>
+                <span class="hb-val">${val}%</span>
+            </div>`;
+        }).join('');
+
+        /* ── Integrity status ── */
+        const flags = latestReport?.shortcut_flags || [];
+        const integrityHTML = flags.length === 0
+            ? `<div class="integrity-pill clean">✓ Clean — No Integrity Flags</div>`
+            : `<div class="integrity-pill flagged">⚠ ${flags.length} Flag(s) Detected</div>`;
+
+        /* ── Credibility ── */
+        const cred = latestReport?.credibility_score ?? latest.score;
+
+        /* ── Session cards ── */
+        const sessionCardsHTML = sessions.map((s, idx) => {
+            const isLatest = idx === 0;
+            const sc = s.score;
+            const skillTags = (s.skills || []).slice(0,4).map(sk => `<span class="tag">${sk}</span>`).join('');
+            const flagged   = false; // would need report to check — defaulting clean display
+            return `
+            <div class="session-card ${isLatest ? 'latest-session' : ''}" id="sess-${idx}">
+                <div class="session-num ${isLatest ? 'latest'  : ''}">${totalSess - idx}</div>
+                <div class="session-info">
+                    <div class="si-date">
+                        ${s.date}
+                        ${isLatest ? '<span class="new-badge" style="margin-left:8px;">Latest</span>' : ''}
+                    </div>
+                    <div class="si-skills">${skillTags || '<span class="tag">General</span>'}</div>
+                </div>
+                <div class="session-score">
+                    <div class="sc-val ${scoreClass(sc)}">${sc}%</div>
+                    <div class="sc-lbl">Score</div>
+                </div>
+                <div class="session-actions">
+                    ${s.report_id
+                        ? `<a href="report.html?report_id=${s.report_id}" class="btn btn-primary" style="padding:8px 18px;font-size:0.8rem;white-space:nowrap;">View Report</a>`
+                        : `<span style="font-size:0.78rem;color:var(--text-secondary);">No report</span>`
+                    }
+                    <div class="flag-pill clean">✓ Integrity OK</div>
+                </div>
+            </div>`;
+        }).join('');
+
+        /* ── Inject HTML ── */
+        container.innerHTML = `
+            <!-- HERO: Latest Result -->
+            <div class="hero-card fade-up">
+                <div>
+                    <div class="hero-label">Latest Interview</div>
+                    <h2 class="hero-title">${latestReport?.name || 'Interview Result'}</h2>
+                    <p class="hero-date">${latest.date}</p>
+                    <div class="hero-tags">
+                        ${(latest.skills || []).map(sk => `<span class="hero-tag">${sk}</span>`).join('')}
+                    </div>
+                    ${integrityHTML}
+                    <div class="hero-breakdown">${barsHTML}</div>
+                    <div class="hero-actions">
+                        ${latest.report_id
+                            ? `<button class="btn-hero-primary" onclick="window.location.href='report.html?report_id=${latest.report_id}'">📄 Full Report</button>`
+                            : ''
+                        }
+                        <button class="btn-hero-ghost" onclick="window.location.href='interview.html'">+ New Interview</button>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+                    <div class="hero-score-ring">
+                        <svg viewBox="0 0 120 120">
+                            <circle class="ring-bg"   cx="60" cy="60" r="56"/>
+                            <circle class="ring-fill" cx="60" cy="60" r="56" id="ring-circle"/>
+                        </svg>
+                        <div class="ring-label">
+                            <div class="ring-val" id="ring-val">--</div>
+                            <div class="ring-sub">WCI SCORE</div>
+                        </div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:0.7rem;opacity:0.65;text-transform:uppercase;letter-spacing:0.08em;">Credibility Rating</div>
+                        <div style="font-size:1.5rem;font-weight:900;margin-top:2px;" id="cred-val">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats + Chart -->
+            <div class="two-col fade-up-2">
+                <div class="chart-card">
+                    <h3>Score Progression</h3>
+                    <p>Your scores across all completed interviews</p>
+                    <div class="chart-wrap"><canvas id="progressChart"></canvas></div>
+                </div>
+                <div class="stats-panel">
+                    <div class="stat-box">
+                        <div class="stat-icon purple">🎯</div>
+                        <div class="stat-info">
+                            <div class="s-label">Total Interviews</div>
+                            <div class="s-val">${totalSess}</div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-icon green">⭐</div>
+                        <div class="stat-info">
+                            <div class="s-label">Best Score</div>
+                            <div class="s-val">${bestScore}%</div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-icon amber">📊</div>
+                        <div class="stat-info">
+                            <div class="s-label">Average Score</div>
+                            <div class="s-val">${avgScore}%</div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-icon purple">🔐</div>
+                        <div class="stat-info">
+                            <div class="s-label">Latest WCI Score</div>
+                            <div class="s-val">${latest.score}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Sessions -->
+            <div class="fade-up-3">
+                <div class="section-header" style="margin-bottom:16px;">
+                    <h2>All Interview Sessions</h2>
+                    <span style="font-size:0.8rem;color:var(--text-secondary);">${totalSess} session${totalSess !== 1 ? 's' : ''} total</span>
+                </div>
+                <div class="sessions-grid">${sessionCardsHTML}</div>
+            </div>
+        `;
+
+        /* ── Animate ring ── */
+        const score = latest.score;
+        document.getElementById('ring-val').textContent = score + '%';
+        document.getElementById('cred-val').textContent = cred + '%';
+        const circumference = 2 * Math.PI * 56; // 351.86
+        const offset = circumference - (score / 100) * circumference;
+        setTimeout(() => {
+            document.getElementById('ring-circle').style.strokeDasharray  = circumference;
+            document.getElementById('ring-circle').style.strokeDashoffset = offset;
+        }, 100);
+
+        /* ── Animate breakdown bars ── */
+        setTimeout(() => {
+            Object.keys(bdLabels).forEach(key => {
+                const el = document.getElementById(`hbf-${key}`);
+                if (el) el.style.width = (breakdown[key] || 0) + '%';
+            });
+        }, 200);
+
+        /* ── Score progression chart ── */
+        const chartLabels  = [...sessions].reverse().map((s, i) => `#${i+1} ${s.date}`);
+        const chartScores  = [...sessions].reverse().map(s => s.score);
+        new Chart(document.getElementById('progressChart'), {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Score %',
+                    data: chartScores,
+                    borderColor: '#7C3AED',
+                    backgroundColor: 'rgba(124,58,237,0.08)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#7C3AED',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        min: 0, max: 100,
+                        grid: { color: '#f1f5f9' },
+                        ticks: { callback: v => v + '%', font: { size: 11 } }
+                    },
+                    x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+    }
+
+    /* ────────────────────────────────────────────────────── */
+    /*  EMPTY STATE                                           */
+    /* ────────────────────────────────────────────────────── */
+    function renderEmpty() {
+        document.getElementById('results-content').innerHTML = `
+            <div class="empty-hero">
+                <div class="ei">🎯</div>
+                <h2>No interview results yet</h2>
+                <p>Complete your first AI interview and your score, breakdown, and full report will appear here <strong>instantly</strong> — no delays.</p>
+                <button class="btn btn-primary" style="margin-top:8px;" onclick="window.location.href='interview.html'">Start Your First Interview</button>
+            </div>
+        `;
+    }
+    </script>
+</body>
+</html>

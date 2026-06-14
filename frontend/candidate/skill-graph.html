@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill Graph | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        .layout { margin-left: 240px; padding: 40px; display: grid; grid-template-columns: 1fr 320px; gap: 32px; min-height: 100vh; background-color: #030303; color: #f4f4f5; }
+        .main-col { display: flex; flex-direction: column; gap: 24px; position: relative; }
+        
+        /* Dark space glassmorphism graph container */
+        .graph-container { 
+            flex: 1; 
+            background: #020205; 
+            border-radius: 20px; 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            position: relative; 
+            overflow: hidden; 
+            cursor: grab; 
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.8), 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        .graph-container:active { cursor: grabbing; }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* Glowing controls overlay */
+        .controls-overlay { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            z-index: 10; 
+            display: flex; 
+            gap: 8px; 
+            background: rgba(9, 9, 11, 0.85); 
+            padding: 6px; 
+            border-radius: 14px; 
+            backdrop-filter: blur(10px); 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        .controls-overlay button.tag {
+            background: transparent;
+            border: none;
+            color: #a1a1aa;
+            cursor: pointer;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        .controls-overlay button.tag.active {
+            background: var(--accent-primary, #7C3AED);
+            color: white;
+            box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+        }
+        .controls-overlay button.tag:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+
+        .view-toggle { background: rgba(255, 255, 255, 0.05); padding: 4px; border-radius: 10px; display: flex; gap: 4px; border: 1px solid rgba(255, 255, 255, 0.08); }
+        .view-toggle button.tag { background: transparent; color: #a1a1aa; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 600; transition: all 0.2s ease; }
+        .view-toggle button.tag.active { background: rgba(255, 255, 255, 0.1); color: white; }
+        
+        /* Glassmorphic Side Panels */
+        .side-panel { display: flex; flex-direction: column; gap: 24px; }
+        .side-panel .card { 
+            background: rgba(15, 15, 23, 0.7); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-radius: 20px; 
+            color: #ffffff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        .area-list { list-style: none; display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+        .area-item { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #e4e4e7; font-weight: 500; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+
+        /* High Legibility Dark Tooltip */
+        .tooltip { 
+            position: fixed; 
+            background: rgba(9, 9, 11, 0.95); 
+            color: #f4f4f5; 
+            padding: 14px; 
+            border-radius: 12px; 
+            font-size: 0.8rem; 
+            pointer-events: none; 
+            display: none; 
+            z-index: 1000; 
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6); 
+            backdrop-filter: blur(8px);
+        }
+        
+        /* Dark mode list view */
+        #list-view { 
+            display: none; 
+            background: rgba(15, 15, 23, 0.75); 
+            backdrop-filter: blur(12px);
+            border-radius: 20px; 
+            padding: 28px; 
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 14px; font-size: 0.8rem; color: #a1a1aa; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); color: #e4e4e7; }
+        tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar placeholder -->
+    </aside>
+
+    <main class="layout">
+        <div class="main-col">
+            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div>
+                    <h1 style="font-size: 1.5rem; margin-bottom: 4px;">Skill Graph</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.875rem;">Visualizing your knowledge dependencies and proficiency gaps.</p>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <div class="view-toggle">
+                        <button id="btn-graph" class="tag active" onclick="setView('graph')" style="cursor:pointer">Graph View</button>
+                        <button id="btn-list" class="tag" onclick="setView('list')" style="cursor:pointer">List View</button>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.location.href='interview.html'">Update Graph</button>
+                </div>
+            </header>
+
+            <!-- GRAPH VIEW -->
+            <div id="graph-view" class="graph-container">
+                <div class="controls-overlay">
+                    <button class="tag active filter-btn" onclick="filterNodes('all', this)">All Skills</button>
+                    <button class="tag filter-btn" onclick="filterNodes('strong', this)">Strong</button>
+                    <button class="tag filter-btn" onclick="filterNodes('weak', this)">Weak</button>
+                    <button class="tag filter-btn" onclick="filterNodes('pending', this)">Pending</button>
+                </div>
+                <canvas id="skillCanvas"></canvas>
+                <div id="graph-loader" class="loading-spinner" style="position: absolute; top: 50%; left: 50%; margin: -12px;"></div>
+                <div id="empty-graph" class="empty-state" style="display: none; height: 100%;">
+                    <span class="empty-illustration">📄</span>
+                    <h3>No skill data yet</h3>
+                    <p>Upload your resume on the Resume & Skills page to generate your skill graph.</p>
+                    <a href="resume.html" class="btn btn-primary" style="margin-top:16px;">Upload Resume</a>
+                </div>
+            </div>
+
+            <!-- LIST VIEW -->
+            <div id="list-view">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Skill Name</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Dependencies</th>
+                        </tr>
+                    </thead>
+                    <tbody id="list-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="card">
+                <h3 style="font-size: 0.875rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em;">Strong Areas</h3>
+                <div id="strong-areas" class="area-list"></div>
+            </div>
+
+            <div class="card">
+                <h3 style="font-size: 0.875rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em;">Weak Areas</h3>
+                <div id="weak-areas" class="area-list"></div>
+            </div>
+
+            <div class="card" style="border-color: rgba(124,58,237,0.5); background: rgba(124,58,237,0.08);">
+                <h3 style="font-size: 0.875rem; text-transform: uppercase; color: var(--accent-primary); letter-spacing: 0.05em;">Pending Skills</h3>
+                <p id="pending-hint" style="font-size:0.78rem; color:rgba(255,255,255,0.4); margin-bottom:10px; display:none;">Complete interviews to fill these bubbles.</p>
+                <div id="pending-skills" class="area-list"></div>
+            </div>
+
+            <div class="card" style="border-color: var(--warning); background: var(--accent-light);">
+                <h3 style="font-size: 0.875rem; text-transform: uppercase; color: var(--warning); letter-spacing: 0.05em;">Inconsistency Alerts</h3>
+                <div id="inconsistency-list" class="area-list" style="color: var(--text-primary); font-weight: 500;"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="tooltip" class="tooltip"></div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let graphData = null;
+        let canvas, ctx;
+        let nodes = [];
+        let filteredNodes = [];
+        let edges = [];
+        let activeFilter = 'all';
+
+        // Physics & fluid rendering states
+        let draggedNode = null;
+        let mouseX = 0, mouseY = 0;
+        let isMouseDown = false;
+        let waveTime = 0;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            canvas = document.getElementById('skillCanvas');
+            ctx = canvas.getContext('2d');
+            
+            // Handle window resizing
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+            });
+            resizeCanvas();
+
+            // Set up interactive mouse events
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('mouseleave', handleMouseUp);
+            
+            // Premium mobile touch event bindings
+            canvas.addEventListener('touchstart', handleTouchStart);
+            canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchend', handleMouseUp);
+
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            try {
+                graphData = await apiRequest(`/candidate/skill-graph/${user.user_id}`);
+                document.getElementById('graph-loader').style.display = 'none';
+                
+                if (!graphData || graphData.nodes.length === 0) {
+                    document.getElementById('empty-graph').style.display = 'flex';
+                } else {
+                    const cx = canvas.width / 2;
+                    const cy = canvas.height / 2;
+                    const nodeCount = graphData.nodes.length;
+                    // Spread radius scales with number of nodes to prevent heavy overlapping
+                    const spreadR = Math.min(Math.max(nodeCount * 14, 180), 420);
+                    
+                    nodes = graphData.nodes.map((n, idx) => {
+                        // Use golden-angle spiral placement for even distribution
+                        const angle  = idx * 2.399963; // golden angle in radians
+                        const radius = spreadR * Math.sqrt((idx + 1) / nodeCount);
+                        const r = calculateNodeRadius(n);
+                        return {
+                            ...n,
+                            x: cx + Math.cos(angle) * radius,
+                            y: cy + Math.sin(angle) * radius,
+                            vx: (Math.random() - 0.5) * 2,
+                            vy: (Math.random() - 0.5) * 2,
+                            r
+                        };
+                    });
+                    
+                    edges = graphData.edges;
+                    filteredNodes = [...nodes];
+                    
+                    requestAnimationFrame(simulationLoop);
+                    populateLists();
+                }
+            } catch (err) {
+                document.getElementById('graph-loader').style.display = 'none';
+                document.getElementById('empty-graph').style.display = 'flex';
+                document.getElementById('empty-graph').querySelector('p').textContent = err.message;
+            }
+        });
+
+        function resizeCanvas() {
+            if (canvas && canvas.parentElement) {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+            }
+        }
+
+        // Coordinate retrieval — corrects for CSS scaling vs internal canvas pixel buffer
+        function getMousePos(e) {
+            const rect   = canvas.getBoundingClientRect();
+            // Scale factor: canvas may be rendered at a different size than its CSS display size
+            const scaleX = canvas.width  / rect.width;
+            const scaleY = canvas.height / rect.height;
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: (e.touches[0].clientX - rect.left) * scaleX,
+                    y: (e.touches[0].clientY - rect.top)  * scaleY
+                };
+            }
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top)  * scaleY
+            };
+        }
+
+        function handleMouseDown(e) {
+            const pos = getMousePos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+            isMouseDown = true;
+
+            // Detect if a bubble is captured
+            draggedNode = null;
+            for (let i = 0; i < filteredNodes.length; i++) {
+                const n = filteredNodes[i];
+                const dx = mouseX - n.x;
+                const dy = mouseY - n.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist <= n.r) {
+                    draggedNode = n;
+                    canvas.style.cursor = 'grabbing';
+                    e.preventDefault(); // stop browser text-select / page scroll interfering
+                    break;
+                }
+            }
+        }
+
+        function handleMouseMove(e) {
+            const pos = getMousePos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+
+            if (draggedNode) {
+                draggedNode.x = mouseX;
+                draggedNode.y = mouseY;
+                draggedNode.vx = 0;
+                draggedNode.vy = 0;
+            } else {
+                // Visual feedback for grabbable circles
+                let hovered = false;
+                for (let i = 0; i < filteredNodes.length; i++) {
+                    const n = filteredNodes[i];
+                    const dx = mouseX - n.x;
+                    const dy = mouseY - n.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist <= n.r) {
+                        hovered = true;
+                        break;
+                    }
+                }
+                canvas.style.cursor = hovered ? 'grab' : 'default';
+            }
+
+            // High-fidelity tooltip logic on hover
+            const tooltip = document.getElementById('tooltip');
+            let hoveredNode = null;
+            filteredNodes.forEach(node => {
+                const dist = Math.sqrt((mouseX - node.x)**2 + (mouseY - node.y)**2);
+                if (dist < node.r) hoveredNode = node;
+            });
+
+            if (hoveredNode) {
+                tooltip.style.display = 'block';
+                tooltip.style.left = e.clientX + 15 + 'px';
+                tooltip.style.top = e.clientY + 15 + 'px';
+                
+                const catCap = hoveredNode.category.charAt(0).toUpperCase() + hoveredNode.category.slice(1);
+                const resumeConfidence = hoveredNode.resume_confidence ? hoveredNode.resume_confidence + '%' : 'Not found';
+                const interviewScore = hoveredNode.interview_score != null ? hoveredNode.interview_score.toFixed(1) + '%' : 'Not tested';
+                const codingScore = hoveredNode.coding_score != null ? hoveredNode.coding_score.toFixed(1) + '%' : 'Not tested';
+                tooltip.innerHTML = `
+                    <div style="font-weight: 700; font-family:'Plus Jakarta Sans', sans-serif; font-size:0.875rem; margin-bottom: 4px; color:#ffffff;">${hoveredNode.label}</div>
+                    <div style="color: rgba(255,255,255,0.7); font-size:0.75rem; margin-bottom: 2px;">Status: <span style="text-transform: capitalize; font-weight:bold; color:${getCategoryColor(hoveredNode)}">${catCap}</span></div>
+                    <div style="color: rgba(255,255,255,0.7); font-size:0.75rem; margin-bottom: 2px;">Resume confidence: <span style="font-family:monospace; font-weight:bold; color:#ffffff;">${resumeConfidence}</span></div>
+                    <div style="color: rgba(255,255,255,0.7); font-size:0.75rem; margin-bottom: 2px;">Interview/theory: <span style="font-family:monospace; font-weight:bold; color:#ffffff;">${interviewScore}</span></div>
+                    <div style="color: rgba(255,255,255,0.7); font-size:0.75rem;">Coding: <span style="font-family:monospace; font-weight:bold; color:#ffffff;">${codingScore}</span></div>
+                `;
+            } else {
+                tooltip.style.display = 'none';
+            }
+        }
+
+        function handleMouseUp() {
+            draggedNode = null;
+            isMouseDown = false;
+            canvas.style.cursor = 'default';
+        }
+
+        function handleTouchStart(e) {
+            handleMouseDown(e);
+            if (draggedNode) e.preventDefault(); // Stop screen dragging when interacting
+        }
+
+        function handleTouchMove(e) {
+            handleMouseMove(e);
+            if (draggedNode) e.preventDefault();
+        }
+
+        function getCategoryColor(node) {
+            if (!node.tested) return '#94a3b8'; // Slate grey
+            if (node.category === 'strong') return '#34d399'; // Emerald
+            if (node.category === 'weak') return '#f87171'; // Coral red
+            return '#fbbf24'; // Amber
+        }
+
+        function getLabelParts(label) {
+            return label
+                .replace(/([\/\-])/g, '$1 ')
+                .replace(/[()]/g, ' ')
+                .split(/\s+/)
+                .filter(Boolean);
+        }
+
+        function calculateNodeRadius(node) {
+            const parts = getLabelParts(node.label);
+            const longestPart = parts.reduce((max, part) => Math.max(max, part.length), 0);
+            const totalChars = parts.join('').length;
+            const scoreRadius = node.tested ? 28 + node.score * 0.24 : 38;
+            const textRadius = Math.max(36, longestPart * 4.1, Math.sqrt(totalChars) * 15);
+            return Math.max(40, Math.min(82, Math.ceil(Math.max(scoreRadius, textRadius))));
+        }
+
+        function wrapLabel(ctx, label, maxWidth) {
+            const words = getLabelParts(label);
+            const lines = [];
+            let currentLine = '';
+
+            words.forEach(word => {
+                const testLine = currentLine ? `${currentLine} ${word}` : word;
+                if (currentLine && ctx.measureText(testLine).width > maxWidth) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
+                }
+            });
+
+            if (currentLine) lines.push(currentLine);
+            return lines;
+        }
+
+        // Main animation clock combining physics updates and canvas drawing
+        function simulationLoop() {
+            updatePhysics();
+            renderGraph();
+            waveTime += 0.05; // Increment fluid wave phase angle
+            requestAnimationFrame(simulationLoop);
+        }
+
+        function updatePhysics() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // 1. Centripetal Gravity Pull (Greatly reduced so disconnected nodes don't form a hub)
+            filteredNodes.forEach(n => {
+                if (n === draggedNode) return;
+                const dx = cx - n.x;
+                const dy = cy - n.y;
+                const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                
+                const centripetal = 0.005; // Very weak, just to keep them vaguely on screen
+                n.vx += (dx / dist) * centripetal;
+                n.vy += (dy / dist) * centripetal;
+            });
+
+            // 2. Spring Forces (Pulls dependent topics towards their prerequisites)
+            edges.forEach(edge => {
+                const fromNode = filteredNodes.find(n => n.id === edge.from);
+                const toNode = filteredNodes.find(n => n.id === edge.to);
+                if (fromNode && toNode) {
+                    const dx = toNode.x - fromNode.x;
+                    const dy = toNode.y - fromNode.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                    
+                    const restLength = (fromNode.r + toNode.r) * 1.5;
+                    const springK = 0.025; // Stronger spring to keep related nodes close
+                    const force = (dist - restLength) * springK;
+                    
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+
+                    if (fromNode !== draggedNode) {
+                        fromNode.vx += fx;
+                        fromNode.vy += fy;
+                    }
+                    if (toNode !== draggedNode) {
+                        toNode.vx -= fx;
+                        toNode.vy -= fy;
+                    }
+                }
+            });
+
+            // 3. Collision & Repulsion (Pushes overlapping bubbles apart, and repels unrelated ones)
+            for (let i = 0; i < filteredNodes.length; i++) {
+                for (let j = i + 1; j < filteredNodes.length; j++) {
+                    const nA = filteredNodes[i];
+                    const nB = filteredNodes[j];
+                    
+                    const dx = nB.x - nA.x;
+                    const dy = nB.y - nA.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                    const minDist = nA.r + nB.r + 25;
+
+                    if (dist < minDist) {
+                        // Hard collision boundary
+                        const overlap = minDist - dist;
+                        const push = overlap * 0.55; 
+                        const px = (dx / dist) * push;
+                        const py = (dy / dist) * push;
+
+                        if (nA !== draggedNode) { nA.vx -= px; nA.vy -= py; }
+                        if (nB !== draggedNode) { nB.vx += px; nB.vy += py; }
+                    } else {
+                        // Long-range electrostatic repulsion to keep unrelated clusters apart
+                        const repelForce = 1500 / (dist * dist);
+                        const px = (dx / dist) * repelForce;
+                        const py = (dy / dist) * repelForce;
+                        
+                        if (nA !== draggedNode) { nA.vx -= px; nA.vy -= py; }
+                        if (nB !== draggedNode) { nB.vx += px; nB.vy += py; }
+                    }
+                }
+            }
+
+            // 4. Dampen forces and transition node coordinates
+            filteredNodes.forEach(n => {
+                if (n === draggedNode) return;
+                
+                n.vx *= 0.85; // Friction damping factor
+                n.vy *= 0.85;
+                
+                n.x += n.vx;
+                n.y += n.vy;
+
+                // Restrict coordinate bounds to keep nodes neatly inside screen container
+                const pad = n.r + 10;
+                if (n.x < pad) { n.x = pad; n.vx = Math.abs(n.vx) * 0.4; }
+                if (n.x > canvas.width - pad) { n.x = canvas.width - pad; n.vx = -Math.abs(n.vx) * 0.4; }
+                if (n.y < pad) { n.y = pad; n.vy = Math.abs(n.vy) * 0.4; }
+                if (n.y > canvas.height - pad) { n.y = canvas.height - pad; n.vy = -Math.abs(n.vy) * 0.4; }
+            });
+        }
+
+        function renderGraph() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Deep space radial backdrop
+            const bgGrad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 60, canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height) * 0.85);
+            bgGrad.addColorStop(0, '#0d0d1a');
+            bgGrad.addColorStop(1, '#020204');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Subtle dot-grid
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.07)';
+            const grid = 40;
+            for (let x = grid; x < canvas.width; x += grid)
+                for (let y = grid; y < canvas.height; y += grid) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+            // Determine hovered node for highlight logic
+            let hoveredNode = draggedNode;
+            if (!hoveredNode) {
+                filteredNodes.forEach(node => {
+                    const dist = Math.sqrt((mouseX - node.x)**2 + (mouseY - node.y)**2);
+                    if (dist < node.r) hoveredNode = node;
+                });
+            }
+
+            // Draw edges first (underneath nodes)
+            edges.forEach(edge => {
+                const fromNode = filteredNodes.find(n => n.id === edge.from);
+                const toNode   = filteredNodes.find(n => n.id === edge.to);
+                if (!fromNode || !toNode) return;
+
+                const isConnectedToHover = hoveredNode && (fromNode === hoveredNode || toNode === hoveredNode);
+                const opacityMod = hoveredNode ? (isConnectedToHover ? 1.0 : 0.02) : 0.5;
+
+                const edgeGrad = ctx.createLinearGradient(fromNode.x, fromNode.y, toNode.x, toNode.y);
+                edgeGrad.addColorStop(0, `${getColorHex(fromNode)}55`);
+                edgeGrad.addColorStop(1, `${getColorHex(toNode)}55`);
+
+                // Soft glow aura
+                if (isConnectedToHover || !hoveredNode) {
+                    ctx.beginPath();
+                    ctx.moveTo(fromNode.x, fromNode.y);
+                    ctx.lineTo(toNode.x, toNode.y);
+                    ctx.strokeStyle = edgeGrad;
+                    ctx.lineWidth = 4;
+                    ctx.globalAlpha = hoveredNode ? 0.3 : 0.1;
+                    ctx.stroke();
+                }
+
+                // Crisp line on top
+                ctx.beginPath();
+                ctx.moveTo(fromNode.x, fromNode.y);
+                ctx.lineTo(toNode.x, toNode.y);
+                ctx.strokeStyle = edgeGrad;
+                ctx.lineWidth = isConnectedToHover ? 2 : 1;
+                ctx.globalAlpha = opacityMod;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            });
+
+            // Draw glassy nodes
+            filteredNodes.forEach(node => {
+                const r   = node.r;
+                const x   = node.x;
+                const y   = node.y;
+                const hex = getColorHex(node);
+                const pct = Math.max(0, Math.min(1, (node.confidence ?? (node.tested ? node.score : 0)) / 100));
+
+                const isConnectedToHover = hoveredNode && (node === hoveredNode || edges.some(e => (e.from === node.id && e.to === hoveredNode.id) || (e.to === node.id && e.from === hoveredNode.id)));
+                const nodeOpacity = hoveredNode ? (isConnectedToHover ? 1.0 : 0.15) : 1.0;
+
+                ctx.save();
+                ctx.globalAlpha = nodeOpacity;
+
+                // ── Clipped interior ─────────────────────────────────────
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.clip();
+
+                // Transparent glass base keeps labels readable without heavy solid bubbles
+                ctx.fillStyle = 'rgba(18, 18, 32, 0.56)';
+                ctx.fillRect(x - r, y - r, r * 2, r * 2);
+
+                const shine = ctx.createRadialGradient(x - r * 0.35, y - r * 0.45, r * 0.1, x, y, r);
+                shine.addColorStop(0, 'rgba(255,255,255,0.16)');
+                shine.addColorStop(0.5, 'rgba(255,255,255,0.035)');
+                shine.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = shine;
+                ctx.fillRect(x - r, y - r, r * 2, r * 2);
+
+                // Subtle liquid fill at the bottom (score indicator only)
+                if (pct > 0) {
+                    const waveAmp  = 3;
+                    const waveFreq = 0.09;
+                    const targetY  = y + r - pct * r * 2;
+
+                    const liqGrad = ctx.createLinearGradient(x, y + r, x, targetY);
+                    liqGrad.addColorStop(0, `${hex}44`);
+                    liqGrad.addColorStop(1, `${hex}10`);
+
+                    ctx.beginPath();
+                    ctx.moveTo(x - r, y + r);
+                    for (let px = x - r; px <= x + r; px++) {
+                        const wy = targetY + Math.sin(px * waveFreq + waveTime + r) * waveAmp;
+                        ctx.lineTo(px, wy);
+                    }
+                    ctx.lineTo(x + r, y + r);
+                    ctx.closePath();
+                    ctx.fillStyle = liqGrad;
+                    ctx.fill();
+
+                    // Thin wave cap line
+                    ctx.beginPath();
+                    for (let px = x - r; px <= x + r; px++) {
+                        const wy = targetY + Math.sin(px * waveFreq + waveTime + r) * waveAmp;
+                        px === Math.ceil(x - r) ? ctx.moveTo(px, wy) : ctx.lineTo(px, wy);
+                    }
+                    ctx.strokeStyle = `${hex}bb`;
+                    ctx.lineWidth = 1.2;
+                    ctx.stroke();
+                }
+
+                ctx.restore(); // end clip
+
+                // ── Single crisp glowing border ring ─────────────────────
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.strokeStyle = `${hex}cc`;
+                ctx.lineWidth   = node.tested ? 2 : 1.5;
+                ctx.shadowColor = hex;
+                ctx.shadowBlur  = node.tested ? 12 : 8;
+                ctx.stroke();
+                ctx.shadowBlur  = 0;
+
+                ctx.beginPath();
+                ctx.arc(x, y, r - 4, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // ── Text ─────────────────────────────────────────────────
+                ctx.textAlign    = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.lineJoin     = 'round';
+
+                const fontSize = Math.max(11, Math.min(15, r / 4.1));
+                ctx.font = `700 ${fontSize}px "Plus Jakarta Sans", "Inter", sans-serif`;
+
+                const lines = wrapLabel(ctx, node.label, r * 1.48);
+
+                const lineH   = fontSize + 3;
+                const subText = node.tested ? node.score.toFixed(0) + '%' : 'Pending';
+                const blockH  = lines.length * lineH + 14;
+                let   textY   = y - blockH / 2 + lineH / 2;
+
+                // Dark outline for crisp legibility
+                ctx.strokeStyle = 'rgba(0,0,0,0.96)';
+                ctx.lineWidth   = 4;
+                ctx.fillStyle   = '#ffffff';
+
+                lines.forEach(line => {
+                    ctx.strokeText(line, x, textY);
+                    ctx.fillText(line, x, textY);
+                    textY += lineH;
+                });
+
+                // Score / Pending sub-label
+                ctx.font        = `600 9px "JetBrains Mono", monospace`;
+                ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+                ctx.lineWidth   = 2;
+                ctx.fillStyle   = node.tested ? hex : 'rgba(255,255,255,0.35)';
+                ctx.strokeText(subText, x, textY + 2);
+                ctx.fillText(subText, x, textY + 2);
+
+                ctx.restore();
+            });
+        }
+
+        // Returns a hex colour string for a node based on its category
+        function getColorHex(node) {
+            if (!node.tested) return '#6366f1';
+            if (node.category === 'strong') return '#34d399';
+            if (node.category === 'weak')   return '#f87171';
+            return '#fbbf24';
+        }
+
+        function setView(view) {
+            document.getElementById('graph-view').style.display = view === 'graph' ? 'block' : 'none';
+            document.getElementById('list-view').style.display = view === 'list' ? 'block' : 'none';
+            document.getElementById('btn-graph').classList.toggle('active', view === 'graph');
+            document.getElementById('btn-list').classList.toggle('active', view === 'list');
+            
+            if (view === 'list') populateListView();
+        }
+
+        function filterNodes(type, btn) {
+            activeFilter = type;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            if (type === 'all') {
+                filteredNodes = [...nodes];
+            } else {
+                filteredNodes = nodes.filter(n => n.category === type);
+            }
+        }
+
+        function populateLists() {
+            const strongEl  = document.getElementById('strong-areas');
+            const weakEl    = document.getElementById('weak-areas');
+            const incEl     = document.getElementById('inconsistency-list');
+            const pendEl    = document.getElementById('pending-skills');
+            const pendHint  = document.getElementById('pending-hint');
+
+            strongEl.innerHTML = graphData.strong_areas.map(a =>
+                `<div class="area-item"><span class="dot" style="color:var(--success);background:var(--success)"></span>${a}</div>`
+            ).join('') || '<div class="area-item" style="color:rgba(255,255,255,0.4)">None yet — complete an interview!</div>';
+
+            weakEl.innerHTML = graphData.weak_areas.map(a =>
+                `<div class="area-item"><span class="dot" style="color:var(--danger);background:var(--danger)"></span>${a}</div>`
+            ).join('') || '<div class="area-item" style="color:rgba(255,255,255,0.4)">None</div>';
+
+            incEl.innerHTML = graphData.inconsistencies.map(a =>
+                `<div class="area-item" style="font-size:0.8rem;color:#fda4af;padding:6px 0;">⚠️ ${a.alert}</div>`
+            ).join('') || '<div class="area-item" style="color:rgba(255,255,255,0.4)">No alerts detected</div>';
+
+            // Pending skills — those from resume not yet tested in an interview
+            const pendingNodes = graphData.nodes.filter(n => !n.tested);
+            if (pendingNodes.length > 0) {
+                pendHint.style.display = 'block';
+                pendEl.innerHTML = pendingNodes.map(n =>
+                    `<div class="area-item"><span class="dot" style="color:#6366f1;background:rgba(99,102,241,0.3);border:1px solid #6366f1"></span>${n.label}</div>`
+                ).join('');
+            } else {
+                pendEl.innerHTML = '<div class="area-item" style="color:rgba(255,255,255,0.4)">All skills tested! 🎉</div>';
+            }
+        }
+
+        function populateListView() {
+            const body = document.getElementById('list-body');
+            body.innerHTML = graphData.nodes.map(n => {
+                const catCap = n.category.charAt(0).toUpperCase() + n.category.slice(1);
+                return `
+                    <tr>
+                        <td style="font-weight: 700; color:#ffffff;">${n.label}</td>
+                        <td class="mono" style="font-weight: 600; color:${getCategoryColor(n)};">${n.tested ? n.score.toFixed(1) + '%' : 'Pending'}</td>
+                        <td><span class="badge" style="background: ${getCategoryColor(n)}22; color: ${getCategoryColor(n)}">${catCap}</span></td>
+                        <td style="font-size: 0.75rem; color: #a1a1aa;">${edges.filter(e => e.to === n.id).map(e => nodes.find(node => node.id === e.from)?.label).join(', ') || '—'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>

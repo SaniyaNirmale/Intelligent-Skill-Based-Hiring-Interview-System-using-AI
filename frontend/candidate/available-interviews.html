@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Interviews Portal | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        body {
+            background-color: #080710;
+            color: #f4f4f5;
+        }
+
+        .portal-layout {
+            display: flex;
+            margin-left: 240px;
+            padding: 40px;
+            min-height: 100vh;
+            flex-direction: column;
+            gap: 32px;
+            transition: margin-left 0.3s;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 24px;
+        }
+
+        .portal-title h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .portal-title p {
+            color: #a1a1aa;
+            font-size: 0.95rem;
+        }
+
+        .section-heading {
+            font-size: 1.25rem;
+            color: #ffffff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+        }
+
+        .section-heading .badge {
+            background: rgba(244, 63, 94, 0.1);
+            color: #f43f5e;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+
+        .interviews-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        /* Glassmorphism Card Style */
+        .evaluation-card {
+            background: rgba(25, 20, 40, 0.45);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .evaluation-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #f43f5e, #be123c);
+            opacity: 0.85;
+        }
+
+        .evaluation-card.completed::before {
+            background: linear-gradient(90deg, #10b981, #059669);
+        }
+
+        .evaluation-card.expired::before {
+            background: linear-gradient(90deg, #71717a, #52525b);
+        }
+
+        .evaluation-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(244, 63, 94, 0.3);
+            box-shadow: 0 12px 40px rgba(244, 63, 94, 0.1);
+        }
+
+        .evaluation-card.completed:hover {
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 12px 40px rgba(16, 185, 129, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .role-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.3;
+        }
+
+        .difficulty-indicator {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .diff-easy { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .diff-medium { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .diff-hard { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+
+        .skills-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .skill-pill {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #e4e4e7;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .card-metadata {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #a1a1aa;
+        }
+
+        .meta-icon {
+            font-size: 0.95rem;
+        }
+
+        .score-display {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .score-val {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #10b981;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .score-lbl {
+            font-size: 0.75rem;
+            color: #a1a1aa;
+        }
+
+        .card-actions {
+            margin-top: auto;
+        }
+
+        .btn-launch {
+            width: 100%;
+            background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3);
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-launch:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(244, 63, 94, 0.45);
+        }
+
+        .btn-completed {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .btn-completed:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-disabled {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #71717a;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: not-allowed;
+        }
+
+        /* Rules Modal */
+        #rules-modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(8, 7, 16, 0.9);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-card {
+            background: #110c1f;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            width: 90%;
+            max-width: 520px;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            color: #ffffff;
+            position: relative;
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal-card.show {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: none;
+            color: #a1a1aa;
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #ffffff;
+        }
+
+        .rules-title {
+            color: #f43f5e;
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rules-list {
+            margin: 24px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            text-align: left;
+        }
+
+        .rule-item {
+            display: flex;
+            gap: 12px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+
+        .rule-bullet {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .btn-modal-start {
+            width: 100%;
+            background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+            border: none;
+            padding: 16px;
+            color: white;
+            font-weight: 700;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-modal-start:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(244, 63, 94, 0.55);
+        }
+
+        .empty-illustration {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        .empty-portal-card {
+            background: rgba(25, 20, 40, 0.25);
+            backdrop-filter: blur(12px);
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 48px;
+            text-align: center;
+            max-width: 500px;
+            margin: 40px auto;
+            color: #cbd5e1;
+        }
+
+        /* Switch Toggle Styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            transition: 0.3s;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #cbd5e1;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        input:checked + .slider {
+            background-color: #f43f5e;
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Placeholder -->
+    <aside id="sidebar">
+        <!-- Sidebar placeholder -->
+    </aside>
+
+    <main class="portal-layout">
+        <div class="header-section">
+            <div class="portal-title">
+                <h1>🏢 Company Interviews</h1>
+                <p>Access official evaluation invitations assigned by hiring teams and track WCI reports.</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="display: none;">
+                    <label class="switch" style="margin: 0;">
+                        <input type="checkbox" id="dev-bypass-toggle" onchange="toggleBypass()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div style="font-size: 2.2rem;">🏢</div>
+            </div>
+        </div>
+
+        <!-- 1. ACTIVE/ASSIGNED OFFICIAL INTERVIEWS -->
+        <section>
+            <div class="section-heading">
+                <span>🛡️ Active Job Evaluations</span>
+                <span class="badge" id="active-count">0</span>
+            </div>
+            <div class="interviews-grid" id="active-grid">
+                <!-- Loader -->
+                <div class="loading-spinner" style="grid-column: 1 / -1; margin: 40px auto;"></div>
+            </div>
+        </section>
+
+        <!-- 2. COMPLETED ASSESSMENTS -->
+        <section>
+            <div class="section-heading">
+                <span>✅ Completed Assessments</span>
+                <span class="badge" id="completed-count" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">0</span>
+            </div>
+            <div class="interviews-grid" id="completed-grid">
+                <!-- Will populate -->
+            </div>
+        </section>
+
+        <!-- 3. EXPIRED ASSESSMENTS -->
+        <section>
+            <div class="section-heading">
+                <span>⏳ Expired Links</span>
+                <span class="badge" id="expired-count" style="background: rgba(113, 113, 122, 0.15); color: #71717a;">0</span>
+            </div>
+            <div class="interviews-grid" id="expired-grid">
+                <!-- Will populate -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Interactive Rules Modal -->
+    <div id="rules-modal" style="display: none;">
+        <div class="modal-card" id="rules-modal-card">
+            <button class="modal-close" onclick="closeRulesModal()">&times;</button>
+            <div class="rules-title">
+                <span>🛡️ Official Secure Proctoring</span>
+            </div>
+            <h2 id="modal-role" style="font-size: 1.25rem; margin-top: 10px; color: #fff; font-weight: 800;">Backend Developer Evaluation</h2>
+            <p style="color: #a1a1aa; font-size: 0.85rem; margin-top: 4px;">Company official evaluation rules are strictly enforced.</p>
+            
+            <div class="rules-list">
+                <div class="rule-item">
+                    <span class="rule-bullet">📷</span>
+                    <div><strong>Webcam & Mic Mandatory:</strong> Live camera feed is required during the entire assessment. Face tracking will monitor focus.</div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-bullet">🚫</span>
+                    <div><strong>Single Sitting Only:</strong> You cannot pause, leave, or restart. Closing the browser window ends the assessment.</div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-bullet">🖥️</span>
+                    <div><strong>Page Fitting Lock:</strong> Fullscreen mode is required to maintain secure focus. Exiting fullscreen logs a violation.</div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-bullet">🛡️</span>
+                    <div><strong>Plagiarism Block:</strong> Tab switches, window defocus, and code pasting are disabled and reported instantly.</div>
+                </div>
+            </div>
+
+            <button class="btn-modal-start" onclick="launchSecureSession()">
+                <span>🔓 Enable Camera & Start Assessment</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let selectedSessionId = null;
+        let officialSessions = [];
+
+        window.addEventListener('load', async () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user) {
+                window.location.href = '../login-candidate.html';
+                return;
+            }
+
+            // Load bypass setting from localStorage
+            const bypassEnabled = localStorage.getItem('dev_bypass_attempts') === 'true';
+            document.getElementById('dev-bypass-toggle').checked = bypassEnabled;
+
+            await loadOfficialSessions(user.user_id);
+        });
+
+        function toggleBypass() {
+            const checkbox = document.getElementById('dev-bypass-toggle');
+            localStorage.setItem('dev_bypass_attempts', checkbox.checked ? 'true' : 'false');
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (user) {
+                loadOfficialSessions(user.user_id);
+            }
+        }
+
+
+
+        async function loadOfficialSessions(candidateId) {
+            const activeGrid = document.getElementById('active-grid');
+            const completedGrid = document.getElementById('completed-grid');
+            const expiredGrid = document.getElementById('expired-grid');
+
+            try {
+                // Fetch defined job roles so we can exclude self-service sessions
+                let jobOpeningTitles = new Set();
+                try {
+                    const jobRoles = await apiRequest('/recruiter/job-roles', 'GET');
+                    jobRoles.forEach(j => jobOpeningTitles.add(j.title.toLowerCase()));
+                } catch(e) { /* ignore, filter won't apply */ }
+
+                const sessions = await apiRequest(`/candidate/official-interviews/${candidateId}`, 'GET');
+                officialSessions = sessions;
+
+                // Sort into categories
+                const now = new Date();
+                const active = [];
+                const completed = [];
+                const expired = [];
+
+                sessions.forEach(s => {
+                    // Skip self-initiated sessions — they belong on the Job Openings page.
+                    // Covers: new sessions tagged source='job_openings', OR legacy sessions
+                    // whose job_role matches a defined job opening (e.g. old "Software Developer"
+                    // sessions that don't have the source tag yet).
+                    const isJobOpeningSession = s.source === 'job_openings' 
+                        || jobOpeningTitles.has((s.job_role || '').toLowerCase());
+                    if (isJobOpeningSession) return;
+
+                    if (s.status === 'completed') {
+                        completed.push(s);
+                    } else {
+                        // Check if expired
+                        const expDate = new Date(s.valid_until);
+                        if (now > expDate) {
+                            expired.push(s);
+                        } else {
+                            active.push(s);
+                        }
+                    }
+                });
+
+                // Deduplicate completed sessions — keep only the most recent per job_role
+                const completedByRole = new Map();
+                completed.forEach(s => {
+                    const roleKey = (s.job_role || 'Unknown').toLowerCase();
+                    const existing = completedByRole.get(roleKey);
+                    const sTime = new Date(s.end_time || s.start_time || 0);
+                    const eTime = existing ? new Date(existing.end_time || existing.start_time || 0) : null;
+                    if (!existing || sTime > eTime) {
+                        completedByRole.set(roleKey, s);
+                    }
+                });
+                const deduplicatedCompleted = Array.from(completedByRole.values());
+
+                // Update Badges
+                document.getElementById('active-count').textContent = active.length;
+                document.getElementById('completed-count').textContent = deduplicatedCompleted.length;
+                document.getElementById('expired-count').textContent = expired.length;
+
+                // Populate Active
+                if (active.length === 0) {
+                    activeGrid.innerHTML = `
+                        <div class="empty-portal-card" style="grid-column: 1 / -1;">
+                            <span class="empty-illustration">🎯</span>
+                            <h3>No Active Invites</h3>
+                            <p>You do not have any pending company evaluations assigned. Ask your recruiter for a secure interview link.</p>
+                        </div>
+                    `;
+                } else {
+                    activeGrid.innerHTML = active.map(s => renderActiveCard(s)).join('');
+                }
+
+                // Populate Completed
+                if (deduplicatedCompleted.length === 0) {
+                    completedGrid.innerHTML = `
+                        <div class="empty-portal-card" style="grid-column: 1 / -1; padding: 24px;">
+                            <p style="font-size:0.85rem; color:#71717a;">No completed company assessments yet.</p>
+                        </div>
+                    `;
+                } else {
+                    completedGrid.innerHTML = deduplicatedCompleted.map(s => renderCompletedCard(s)).join('');
+                }
+
+                // Populate Expired
+                if (expired.length === 0) {
+                    expiredGrid.innerHTML = `
+                        <div class="empty-portal-card" style="grid-column: 1 / -1; padding: 24px;">
+                            <p style="font-size:0.85rem; color:#71717a;">No expired evaluations.</p>
+                        </div>
+                    `;
+                } else {
+                    expiredGrid.innerHTML = expired.map(s => renderExpiredCard(s)).join('');
+                }
+
+            } catch (err) {
+                console.error("Failed to load official sessions:", err);
+                activeGrid.innerHTML = `<div style="color:var(--danger); grid-column:1/-1; text-align:center;">Failed to load evaluation portal. ${err.message}</div>`;
+            }
+        }
+
+        function renderActiveCard(s) {
+            const isResume = s.status === 'in_progress';
+            const actionText = isResume ? "Start Assessment 🎙️" : "Start Secure Sitting 🔒";
+            const diffClass = `diff-${s.difficulty || 'medium'}`;
+            const timeStr = formatExpiration(s.valid_until);
+
+            const skillPills = s.skills.map(sk => `<span class="skill-pill">${(typeof sk === 'object' && sk !== null) ? (sk.name || sk.skill || '') : sk}</span>`).join(' ');
+
+            return `
+                <div class="evaluation-card">
+                    <div>
+                        <div class="card-header">
+                            <span class="role-title">${s.job_role || 'Software Developer'}</span>
+                            <span class="difficulty-indicator ${diffClass}">${s.difficulty || 'Medium'}</span>
+                        </div>
+                        <div class="skills-container">${skillPills}</div>
+                    </div>
+                    
+                    <div>
+                        <div class="card-metadata">
+                            <div class="meta-item">
+                                <span class="meta-icon">⏳</span>
+                                <span>${timeStr}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon">📋</span>
+                                <span>10 AI Proctoring Questions</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon">🛡️</span>
+                                <span>Status: <strong style="color: ${isResume ? '#3b82f6' : '#f43f5e'}">${isResume ? 'In Progress' : 'Assigned'}</strong></span>
+                            </div>
+                        </div>
+                        
+                        <div class="card-actions">
+                            <button class="btn-launch" onclick="showRulesModal('${s.session_id}', '${s.job_role}')">${actionText}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+
+        function renderCompletedCard(s) {
+            const completedDate = s.end_time || s.start_time
+                ? new Date(s.end_time || s.start_time).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+                : 'N/A';
+
+            const reportButton = s.report_id 
+                ? `<button class="btn-completed" onclick="window.location.href='report.html?report_id=${s.report_id}'">View Report</button>`
+                : '';
+
+            return `
+                <div class="evaluation-card completed" style="min-height: unset; padding: 20px 24px;">
+                    <div style="display: flex; align-items: flex-start; gap: 16px;">
+                        <div style="font-size: 1.6rem; background: rgba(16,185,129,0.1); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">✅</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${s.job_role || 'Software Developer'}</div>
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span style="font-size: 0.75rem; color: #6b7280; width: 110px;">Completed On</span>
+                                    <span style="font-size: 0.82rem; color: #d1d5db; font-weight: 500;">${completedDate}</span>
+                                </div>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span style="font-size: 0.75rem; color: #6b7280; width: 110px;">Attempt Status</span>
+                                    <span style="font-size: 0.82rem; color: #10b981; font-weight: 600;">Submitted</span>
+                                </div>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span style="font-size: 0.75rem; color: #6b7280; width: 110px;">Review Status</span>
+                                    <span style="font-size: 0.82rem; color: #f59e0b; font-weight: 500;">🕐 Under Review</span>
+                                </div>
+                            </div>
+                            ${reportButton ? `<div style="margin-top: 14px;">${reportButton}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+
+        function renderExpiredCard(s) {
+            const skillPills = s.skills.map(sk => `<span class="skill-pill">${(typeof sk === 'object' && sk !== null) ? (sk.name || sk.skill || '') : sk}</span>`).join(' ');
+            const expDate = new Date(s.valid_until).toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+
+            return `
+                <div class="evaluation-card expired">
+                    <div>
+                        <div class="card-header">
+                            <span class="role-title" style="color:#71717a;">${s.job_role || 'Software Developer'}</span>
+                            <span class="difficulty-indicator" style="background:rgba(113,113,122,0.1); color:#71717a;">Expired</span>
+                        </div>
+                        <div class="skills-container">${skillPills}</div>
+                    </div>
+                    
+                    <div>
+                        <div class="card-metadata">
+                            <div class="meta-item">
+                                <span class="meta-icon">⏳</span>
+                                <span>Link expired on ${expDate}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="card-actions">
+                            <button class="btn-disabled" disabled>Invite Timed Out</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatExpiration(validUntil) {
+            if (!validUntil) return "Unlimited Validity";
+            const now = new Date();
+            const exp = new Date(validUntil);
+            if (isNaN(exp.getTime())) return "Unlimited Validity";
+            const diffMs = exp - now;
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) {
+                return "Expires in 1 day (Urgent)";
+            } else if (diffDays <= 0) {
+                return "Expired";
+            }
+            return `Expires in ${diffDays} days`;
+        }
+
+        let isRetakeSession = false;
+        function showRulesModal(sessionId, jobRole, isRetake = false) {
+            selectedSessionId = sessionId;
+            isRetakeSession = isRetake;
+            document.getElementById('modal-role').textContent = `${jobRole} Evaluation`;
+            
+            const modal = document.getElementById('rules-modal');
+            const card = document.getElementById('rules-modal-card');
+            
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                card.classList.add('show');
+            }, 50);
+        }
+
+        function closeRulesModal() {
+            const card = document.getElementById('rules-modal-card');
+            card.classList.remove('show');
+            setTimeout(() => {
+                document.getElementById('rules-modal').style.display = 'none';
+            }, 300);
+        }
+
+        async function launchSecureSession() {
+            if (!selectedSessionId) return;
+
+            // 1. Request camera and mic access explicitly first, to avoid blocking inside fullscreen
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                // Stop the tracks immediately, we just wanted to grant permission
+                stream.getTracks().forEach(track => track.stop());
+
+                // 2. Request Fullscreen (user gesture context is valid here!)
+                try {
+                    if (document.documentElement.requestFullscreen) {
+                        await document.documentElement.requestFullscreen();
+                    }
+                } catch (fsErr) {
+                    console.warn("Fullscreen request bypassed:", fsErr.message);
+                }
+
+                // 3. Retrieve session details if it is a retake session
+                let finalSessionId = selectedSessionId;
+                if (isRetakeSession) {
+                    const user = JSON.parse(sessionStorage.getItem('wci_user'));
+                    if (user && user.user_id) {
+                        const originalSession = officialSessions.find(s => s.session_id === selectedSessionId);
+                        if (originalSession) {
+                            // Map skills properly to extract string representation
+                            const skillsList = (originalSession.skills || []).map(sk => {
+                                return (typeof sk === 'object' && sk !== null) ? (sk.name || sk.skill || sk) : sk;
+                            });
+                            
+                            // Call /interview/start to create a fresh, clean in-progress session
+                            const response = await apiRequest('/interview/start', 'POST', {
+                                candidate_id: user.user_id,
+                                session_type: 'official',
+                                job_role: originalSession.job_role || 'Software Developer',
+                                difficulty: originalSession.difficulty || 'medium',
+                                skills: skillsList
+                            });
+                            finalSessionId = response.session_id;
+                        }
+                    }
+                }
+
+                // Redirect to official proctored interview
+                window.location.href = `official-interview.html?session_id=${finalSessionId}`;
+
+            } catch (err) {
+                alert("Webcam and microphone access are MANDATORY to enter this secure proctored sitting. Please allow device access.");
+            }
+        }
+    </script>
+</body>
+</html>

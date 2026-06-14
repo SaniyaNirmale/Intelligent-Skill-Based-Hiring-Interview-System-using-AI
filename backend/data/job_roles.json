@@ -1,0 +1,54 @@
+[
+    {
+        "role_id": "job_dev_01",
+        "title": "Backend Developer",
+        "description": "Develop scalable backend services, design robust database models, and construct secure high-throughput REST APIs.",
+        "skills": [
+            "Python",
+            "FastAPI",
+            "SQL"
+        ],
+        "difficulty": "medium",
+        "num_questions": 10
+    },
+    {
+        "role_id": "job_mle_02",
+        "title": "Machine Learning Engineer",
+        "description": "Architect deep learning pipelines, train neural networks, fine-tune LLMs, and optimize real-time inference.",
+        "skills": [
+            "Python",
+            "Machine Learning",
+            "PyTorch",
+            "LLMs"
+        ],
+        "difficulty": "hard",
+        "num_questions": 10
+    },
+    {
+        "role_id": "job_fed_03",
+        "title": "Frontend Developer",
+        "description": "Design sleek, glassmorphic interfaces, establish styling standards, and orchestrate performant SPA components.",
+        "skills": [
+            "React",
+            "JavaScript",
+            "CSS",
+            "HTML"
+        ],
+        "difficulty": "easy",
+        "num_questions": 10
+    },
+    {
+        "role_id": "job_swd_04",
+        "title": "Software Developer",
+        "description": "Build full-stack applications, implement robust algorithms, and deliver clean, maintainable code across multiple domains.",
+        "skills": [
+            "Python",
+            "Java",
+            "Data Structures",
+            "Algorithms",
+            "OOP"
+        ],
+        "difficulty": "medium",
+        "num_questions": 10
+    }
+]

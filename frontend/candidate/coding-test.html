@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coding Assessment | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        .coding-layout { display: grid; grid-template-columns: minmax(560px, 58%) minmax(420px, 42%); margin-left: 240px; height: 100vh; overflow: hidden; background: #0a0a0a; }
+        .editor-side { order: 1; min-width: 0; display: flex; flex-direction: column; background: #131315; border-right: 1px solid rgba(255,255,255,0.05); }
+        .proctor-side { order: 2; min-width: 0; background: #0a0a0a; padding: 18px; display: flex; flex-direction: column; border-left: 1px solid rgba(124,58,237,0.22); }
+        
+        .code-header { background: #1a1a1e; display: flex; border-top: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); overflow-x: auto; }
+        .file-tab { padding: 12px 24px; color: #71717a; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; cursor: default; border-right: 1px solid rgba(255,255,255,0.05); background: #131315; border-top: 2px solid transparent; transition: all 0.2s; }
+        .file-tab.active { color: #f4f4f5; border-top-color: #fbbf24; background: #17171a; }
+        .file-tab::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #52525b; }
+        .file-tab.active::before { background: #fbbf24; }
+        
+        .editor-container { position: relative; flex: 1; display: flex; flex-direction: column; background: #0d0d0f; }
+        .line-numbers { position: absolute; left: 0; top: 0; bottom: 0; width: 48px; padding: 24px 0; background: #131315; border-right: 1px solid rgba(255,255,255,0.05); color: #52525b; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; line-height: 1.7; pointer-events: none; user-select: none; }
+        textarea#code-editor { flex: 1; width: 100%; background: transparent; color: #cbd5e1; border: none; padding: 24px 24px 24px 64px; font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; resize: none; line-height: 1.7; outline: none; box-shadow: inset 0 0 100px rgba(0,0,0,0.5); }
+        textarea#code-editor:focus { background: rgba(255,255,255,0.01); color: #f8fafc; }
+        
+        .proctor-camera { width: 100%; height: clamp(300px, 42vh, 460px); background: #000; border-radius: 12px; margin-bottom: 18px; overflow: hidden; position: relative; border: 2px solid #ef4444; box-shadow: 0 16px 36px rgba(15,23,42,0.36), 0 0 22px rgba(239,68,68,0.2); flex: 0 0 auto; }
+        #video-feed { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); opacity: 0.9; }
+        
+        .challenge-box { background: linear-gradient(145deg, #1f1f23, #151518); padding: 32px; flex-shrink: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .status-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; background: rgba(124, 58, 237, 0.15); color: #c4b5fd; margin-bottom: 16px; border: 1px solid rgba(124, 58, 237, 0.3); text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        .btn-run { background: linear-gradient(to right, #7c3aed, #6d28d9); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4); }
+        .btn-run:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124, 58, 237, 0.6); }
+        @media (max-width: 1100px) {
+            .coding-layout { grid-template-columns: 1fr; margin-left: 0; height: auto; min-height: 100vh; overflow: auto; }
+            .editor-side, .proctor-side { order: initial; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Proctoring Coding Assessment Lock Modal -->
+    <div id="lock-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0a0a0a; z-index: 9999; display: flex; align-items: center; justify-content: center; color: white; text-align: center;">
+        <div id="lock-modal-card" style="background: #131315; border: 1px solid rgba(124, 58, 237, 0.3); padding: 40px; border-radius: 16px; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+            <h1 style="color: #7c3aed; margin-bottom: 16px; font-size: 2rem;">💻 Coding Assessment</h1>
+            <h2 style="color: #ffffff; margin-bottom: 20px; font-size: 1.2rem;">Strict Proctoring Active</h2>
+            <p style="color: #cbd5e1; line-height: 1.6; margin-bottom: 30px; text-align: left;">
+                This coding module evaluates your debugging and syntax skills. AI proctoring logs copy-paste and tab switches.
+                <br><br>
+                1. 📷 <strong>Webcam is mandatory</strong> for face & attention monitoring.
+                <br>
+                2. 🖥️ <strong>Page Fitting Mode</strong> triggers fullscreen to keep workspace lock.
+                <br>
+                3. 🛡️ <strong>Integrity metrics:</strong> Copy-pasting and window defocus are blocked.
+            </p>
+            <button class="btn-run" onclick="startCodingAssessment()" style="width: 100%; padding: 16px; font-size: 1.1rem; font-weight: 700; border-radius: 10px;">
+                Enable Camera & Start Coding
+            </button>
+        </div>
+    </div>
+
+    <aside id="sidebar">
+        <!-- Sidebar -->
+    </aside>
+
+    <main class="coding-layout">
+        <div class="editor-side">
+            <!-- Question moved to top of editor side -->
+            <div class="challenge-box" style="background: linear-gradient(145deg, #27272a, #18181b); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <span id="diff-badge" class="status-badge" style="margin-bottom: 0;">Easy</span>
+                        <select id="lang-selector" onchange="loadChallenge()" style="background: #1f1f23; color: #fff; border: 1px solid rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; outline: none; cursor: pointer;">
+                            <option value="Python" style="background: #1f1f23; color: #fff;">Python</option>
+                            <option value="JavaScript" style="background: #1f1f23; color: #fff;">JavaScript</option>
+                            <option value="Java" style="background: #1f1f23; color: #fff;">Java</option>
+                            <option value="C++" style="background: #1f1f23; color: #fff;">C++</option>
+                        </select>
+                    </div>
+                    <button id="fullscreen-toggle" onclick="toggleFullscreen()" style="background: rgba(255, 255, 255, 0.05); color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; outline: none;">
+                        <span>🖥️ Page Fitting Mode</span>
+                    </button>
+                </div>
+                <h3 id="challenge-title" style="margin-bottom: 16px; color: #fff; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em;">Problem Description</h3>
+                <p id="challenge-desc" style="font-size: 1.25rem; color: #e4e4e7; line-height: 1.7; margin: 0; font-family: 'Inter', sans-serif;">
+                    The following code contains subtle logic bugs. Your task is to identify and fix them to achieve the desired output.
+                </p>
+            </div>
+            
+            <div class="code-header">
+                <div class="file-tab active" id="main-tab">main.py</div>
+            </div>
+            <div class="editor-container">
+                <div class="line-numbers">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11<br>12<br>13<br>14<br>15<br>16</div>
+                <textarea id="code-editor" spellcheck="false" placeholder="// Loading buggy code..."></textarea>
+                
+                <!-- Proctoring Warning -->
+                <div id="paste-warning" style="display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(239, 68, 68, 0.95); color: white; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; z-index: 100; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); border: 1px solid #fca5a5; display: flex; align-items: center; gap: 8px; pointer-events: none; opacity: 0; transition: opacity 0.3s;">
+                    ⚠️ AI PROCTORING: Copy-pasting code is strictly prohibited during this assessment.
+                </div>
+                
+                <div id="tab-warning" style="display: none; position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: rgba(239, 68, 68, 0.95); color: white; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; z-index: 100; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); border: 1px solid #fca5a5; display: flex; align-items: center; gap: 8px; pointer-events: none; opacity: 0; transition: opacity 0.3s;">
+                    ⚠️ AI PROCTORING: Tab switching detected. This violation has been logged to your report.
+                </div>
+            </div>
+            
+            <div style="padding: 20px 24px; background: #131315; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; position: relative;">
+                <button class="btn btn-secondary" onclick="resetCode()" style="color: #a1a1aa; border-color: rgba(255,255,255,0.1); background: transparent;">Reset Fix</button>
+                
+                <!-- Terminal Output / Result Summary -->
+                <div id="result-summary" style="display: none; color: #a1a1aa; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; flex: 1; margin: 0 20px; padding: 12px 20px; border-radius: 8px; background: #000; border: 1px solid rgba(255,255,255,0.1); overflow-y: auto; max-height: 120px;"></div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn" onclick="simulateRun()" id="test-btn" style="padding: 12px 24px; border-radius: 8px; font-weight: 600; background: #27272a; color: white; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s;">▶ Test Code</button>
+                    <button class="btn-run" onclick="submitCode()" id="submit-btn">Run & Submit Fix</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="proctor-side">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h3 style="font-size: 0.85rem; text-transform: uppercase; color: #71717a; letter-spacing: 0.05em; font-weight: 700; margin:0;">AI Live Proctoring</h3>
+                <!-- Voice Mute Toggle -->
+                <button id="voiceMuteBtn" onclick="toggleVoiceMute()"
+                    title="Toggle voice alerts"
+                    style="background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3); color: #c4b5fd;
+                           border-radius: 8px; padding: 5px 12px; font-size: 0.75rem; font-weight: 700;
+                           cursor: pointer; display:flex; align-items:center; gap:6px; transition: all 0.2s;">
+                    🔊 Voice ON
+                </button>
+            </div>
+
+            <div class="proctor-camera">
+                <video id="video-feed" autoplay playsinline muted></video>
+                <div style="position: absolute; top: 12px; left: 12px; background: rgba(239, 68, 68, 0.9); color: white; font-size: 0.65rem; padding: 4px 10px; border-radius: 12px; font-weight: 800; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.5);">
+                    <div style="width:6px; height:6px; background:#fff; border-radius:50%; animation: blink 1s infinite;"></div> LIVE STREAM
+                </div>
+                <style>@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }</style>
+            </div>
+
+            <!-- Violation Counter -->
+            <div id="violationCounter" style="display:flex; gap:12px; margin-bottom:12px;">
+                <div style="flex:1; background: rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:10px; padding:10px 14px; text-align:center;">
+                    <div id="pasteCount" style="font-size:1.5rem; font-weight:800; color:#ef4444;">0</div>
+                    <div style="font-size:0.65rem; color:#a1a1aa; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Paste Attempts</div>
+                </div>
+                <div style="flex:1; background: rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:10px; padding:10px 14px; text-align:center;">
+                    <div id="tabCount" style="font-size:1.5rem; font-weight:800; color:#ef4444;">0</div>
+                    <div style="font-size:0.65rem; color:#a1a1aa; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Tab Switches</div>
+                </div>
+            </div>
+
+            <div style="background: rgba(124, 58, 237, 0.05); border: 1px solid rgba(124, 58, 237, 0.2); padding: 20px; border-radius: 12px;">
+                <p style="font-size: 0.85rem; color: #a1a1aa; line-height: 1.6; text-align: left; margin: 0;">
+                    <strong style="color: #c4b5fd;">🎙️ Voice + Visual Alerts Active.</strong>
+                    The AI is monitoring your session for integrity. All violations are spoken aloud and logged to your report.
+                    You can mute voice alerts using the toggle above.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Hidden Canvas for Snapshots -->
+    <canvas id="snapshot-canvas" style="display: none;" width="320" height="180"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/voiceAlert.js"></script>
+    <script src="../js/proctoringEngine.js"></script>
+    <script>
+        let currentChallenge = null;
+        let voiceMuted       = false;
+        let pasteViolations  = 0;
+        let tabViolations    = 0;
+        
+        const difficulties = ['easy', 'easy', 'medium', 'hard', 'hard'];
+        let currentDiffIndex = 0;
+
+        // ── Voice Alert Helper ──────────────────────────────────────────────
+        function speakAlert(text, opts = {}) {
+            if (voiceMuted) return;
+            VoiceAlert.speak(text, opts);
+        }
+
+        function toggleVoiceMute() {
+            voiceMuted = !voiceMuted;
+            const btn = document.getElementById('voiceMuteBtn');
+            if (voiceMuted) {
+                VoiceAlert.stop();
+                btn.textContent = '🔇 Voice OFF';
+                btn.style.background  = 'rgba(239,68,68,0.1)';
+                btn.style.borderColor = 'rgba(239,68,68,0.3)';
+                btn.style.color       = '#ef4444';
+            } else {
+                btn.textContent = '🔊 Voice ON';
+                btn.style.background  = 'rgba(124,58,237,0.15)';
+                btn.style.borderColor = 'rgba(124,58,237,0.3)';
+                btn.style.color       = '#c4b5fd';
+            }
+        }
+
+        // ── Show on-screen warning banner + optional voice ──────────────────
+        function showBanner(el, message, durationMs, voiceMessage, voiceOpts = {}) {
+            el.style.display = 'flex';
+            void el.offsetWidth;          // trigger reflow for CSS transition
+            el.style.opacity = '1';
+
+            clearTimeout(el._hideTimeout);
+            el._hideTimeout = setTimeout(() => {
+                el.style.opacity = '0';
+                setTimeout(() => el.style.display = 'none', 300);
+            }, durationMs);
+
+            speakAlert(voiceMessage, voiceOpts);
+        }
+
+        async function startCodingAssessment() {
+            try {
+                // Request camera permission
+                await initCamera();
+
+                // Request Fullscreen
+                try {
+                    if (document.documentElement.requestFullscreen) {
+                        await document.documentElement.requestFullscreen();
+                    }
+                } catch (fsErr) {
+                    console.warn("Fullscreen request bypassed by browser policy:", fsErr.message);
+                }
+
+                // Hide lock modal
+                document.getElementById('lock-modal').style.display = 'none';
+
+                // Load challenge
+                await loadChallenge();
+
+                // Greet the student so they know voice is active
+                setTimeout(() => {
+                    speakAlert(
+                        'Welcome to the coding assessment. ' +
+                        'AI proctoring is now active. ' +
+                        'Copy pasting and tab switching are strictly prohibited.',
+                        { rate: 0.92 }
+                    );
+                }, 1200);
+
+            } catch (err) {
+                console.error("Initialization failed:", err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // ── Anti-cheat: Copy-Paste Detection ──────────────────────────
+            const editor      = document.getElementById('code-editor');
+            const pasteWarn   = document.getElementById('paste-warning');
+
+            editor.addEventListener('paste', (e) => {
+                e.preventDefault(); // block the actual paste
+
+                pasteViolations++;
+                document.getElementById('pasteCount').textContent = pasteViolations;
+
+                if (typeof ProctoringEngine !== 'undefined') {
+                    ProctoringEngine.triggerPasteViolation();
+                }
+
+                const msg = pasteViolations === 1
+                    ? 'Warning! Copy pasting is strictly prohibited during this assessment. This violation has been logged.'
+                    : `Warning! This is your ${pasteViolations === 2 ? 'second' : 'third or more'} paste attempt. ` +
+                      'Repeated violations will affect your score.';
+
+                showBanner(
+                    pasteWarn,
+                    msg,
+                    4500,
+                    msg,
+                    { priority: 'critical', rate: 0.9 }
+                );
+            });
+
+            // ── Anti-cheat: Tab / Window Switch Detection ──────────────────
+            const tabWarn = document.getElementById('tab-warning');
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    tabViolations++;
+                    document.getElementById('tabCount').textContent = tabViolations;
+
+                    if (typeof ProctoringEngine !== 'undefined') {
+                        ProctoringEngine.triggerTabViolation();
+                    }
+                } else {
+                    // They came back — show visual + voice warning
+                    const msg = tabViolations >= 3
+                        ? `Final warning! You have switched tabs ${tabViolations} times. ` +
+                          'Further violations may result in automatic disqualification.'
+                        : `Warning! Tab switching detected. This is violation number ${tabViolations}. ` +
+                          'Please stay on the assessment page at all times.';
+
+                    showBanner(
+                        tabWarn,
+                        msg,
+                        6000,
+                        msg,
+                        { priority: 'critical', rate: 0.88 }
+                    );
+                }
+            });
+        });
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('video-feed').srcObject = stream;
+
+                const sessionId = sessionStorage.getItem('wci_session');
+                if (sessionId && typeof ProctoringEngine !== 'undefined') {
+                    ProctoringEngine.start(sessionId, 'video-feed', 'snapshot-canvas', 'coding');
+                }
+            } catch (err) {
+                const msg = 'Camera access is required for proctoring. ' +
+                            'Please allow camera access and reload the page.';
+                alert(msg);
+                speakAlert(msg, { priority: 'critical', rate: 0.88 });
+            }
+        }
+
+        async function loadChallenge() {
+            let skillName = document.getElementById('lang-selector').value;
+            let currentDiff = difficulties[currentDiffIndex];
+            
+            // Update UI elements
+            document.getElementById('diff-badge').textContent = `Difficulty: ${currentDiff.toUpperCase()}`;
+            document.getElementById('diff-badge').style.color = currentDiff === 'easy' ? '#34d399' : (currentDiff === 'medium' ? '#fbbf24' : '#f87171');
+            document.getElementById('diff-badge').style.borderColor = currentDiff === 'easy' ? 'rgba(52, 211, 153, 0.3)' : (currentDiff === 'medium' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(248, 113, 113, 0.3)');
+            document.getElementById('diff-badge').style.background = currentDiff === 'easy' ? 'rgba(52, 211, 153, 0.1)' : (currentDiff === 'medium' ? 'rgba(251, 191, 36, 0.1)' : 'rgba(248, 113, 113, 0.1)');
+            
+            const extMap = { 'Python': 'py', 'JavaScript': 'js', 'Java': 'java', 'C++': 'cpp' };
+            document.getElementById('main-tab').textContent = `main.${extMap[skillName] || 'txt'}`;
+
+            try {
+                const data = await apiRequest('/coding/generate', 'POST', { skill: skillName, difficulty: currentDiff });
+                currentChallenge = data;
+                document.getElementById('challenge-desc').textContent = data.problem_description;
+                document.getElementById('code-editor').value = data.buggy_code;
+                
+                // Reset states
+                const summary = document.getElementById('result-summary');
+                if(summary) summary.style.display = 'none';
+                document.getElementById('submit-btn').textContent = 'Run & Submit Fix';
+                document.getElementById('test-btn').style.display = 'inline-block';
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function simulateRun() {
+            const btn = document.getElementById('test-btn');
+            const code = document.getElementById('code-editor').value;
+            const summary = document.getElementById('result-summary');
+            
+            btn.disabled = true;
+            btn.textContent = "Running...";
+            summary.style.display = 'block';
+            summary.innerHTML = "<span style='color: #fbbf24;'>$ executing main.py...</span>";
+            summary.style.background = '#000';
+            summary.style.border = '1px solid rgba(255,255,255,0.1)';
+
+            try {
+                const result = await apiRequest('/coding/run', 'POST', {
+                    challenge: currentChallenge,
+                    user_code: code
+                });
+                
+                // Show raw terminal output
+                summary.innerHTML = `
+                    <div style="color: #fbbf24; margin-bottom: 8px;">$ executing main.py...</div>
+                    <div style="white-space: pre-wrap; color: ${result.output.includes('Traceback') || result.output.includes('Error') ? '#ef4444' : '#a1a1aa'};">${result.output}</div>
+                `;
+            } catch (err) {
+                summary.innerHTML = `<span style="color: #ef4444;">Execution failed: ${err.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "▶ Test Code";
+            }
+        }
+
+        async function submitCode() {
+            const btn = document.getElementById('submit-btn');
+            const code = document.getElementById('code-editor').value;
+            btn.disabled = true;
+            btn.textContent = "Analyzing...";
+
+            try {
+                const result = await apiRequest('/coding/evaluate', 'POST', {
+                    challenge: currentChallenge,
+                    user_code: code
+                });
+
+                // Save result to session so Skill Graph liquid fill updates
+                const sessionId = sessionStorage.getItem('wci_session');
+                const user = JSON.parse(sessionStorage.getItem('wci_user') || '{}');
+                
+                if (currentChallenge && user.user_id) {
+                    try {
+                        await apiRequest('/interview/coding-result', 'POST', {
+                            user_id:    user.user_id,
+                            session_id: sessionId,
+                            skill:      currentChallenge.skill,
+                            score:      result.score,
+                            passed:     result.passed
+                        });
+                    } catch (e) {
+                        console.warn("Could not save coding result to session:", e.message);
+                    }
+                }
+
+                // Show result panel
+                const isFinalQuestion = currentDiffIndex >= difficulties.length - 1;
+                if(result.passed && !isFinalQuestion) {
+                    currentDiffIndex++;
+                }
+
+                const summary = document.getElementById('result-summary');
+                summary.style.display = 'block';
+                summary.style.background = result.passed ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+                summary.style.border = `1px solid ${result.passed ? '#22c55e' : '#ef4444'}`;
+                summary.innerHTML = `
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; font-family: 'Inter', sans-serif;">
+                        <span style="color: white;"><strong>${result.passed ? '✅ Fix Accepted' : '⚠️ Fix Rejected'}:</strong> ${result.feedback}</span>
+                        <span style="font-size:1.1rem; font-weight:800; color:${result.passed ? '#22c55e' : '#ef4444'}; white-space:nowrap;">${result.score}%</span>
+                    </div>
+                    <div style="margin-top:12px; display:flex; gap:12px; font-family: 'Inter', sans-serif;">
+                        ${result.passed && isFinalQuestion ? 
+                            `<button class="btn-run" style="padding:8px 16px; font-size:0.85rem;" onclick="window.location.href='skill-graph.html'">📊 Finish Assessment</button>`
+                            :
+                            `<button class="btn-run" style="padding:8px 16px; font-size:0.85rem;" onclick="window.location.href='skill-graph.html'">📊 View Skill Graph</button>
+                             <button class="btn" style="padding:8px 16px; font-size:0.85rem; background: #27272a; color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;" onclick="loadChallenge()">Try Another</button>`
+                        }
+                    </div>
+                `;
+                document.getElementById('test-btn').style.display = 'none';
+
+            } catch (err) {
+                alert("Evaluation failed: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Run & Submit Fix";
+            }
+        }
+
+        function resetCode() {
+            if(currentChallenge) document.getElementById('code-editor').value = currentChallenge.buggy_code;
+        }
+
+        // --- FULLSCREEN PAGE FITTING CONTROLS ---
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().then(() => {
+                    updateFullscreenUI(true);
+                }).catch(err => {
+                    console.warn(`Fullscreen activation failed: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    updateFullscreenUI(false);
+                });
+            }
+        }
+
+        function updateFullscreenUI(isFullscreen) {
+            const btn = document.getElementById('fullscreen-toggle');
+            if (btn) {
+                if (isFullscreen) {
+                    btn.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
+                    btn.style.color = "white";
+                    btn.style.border = "none";
+                    btn.innerHTML = `<span>🟢 Page Fitted (Fullscreen)</span>`;
+                } else {
+                    btn.style.background = "rgba(255, 255, 255, 0.05)";
+                    btn.style.color = "#fff";
+                    btn.style.border = "1px solid rgba(255, 255, 255, 0.15)";
+                    btn.innerHTML = `<span>🖥️ Page Fitting Mode</span>`;
+                }
+            }
+        }
+
+        // Keep UI in sync with native browser fullscreen state
+        document.addEventListener('fullscreenchange', () => {
+            updateFullscreenUI(!!document.fullscreenElement);
+        });
+    </script>
+</body>
+</html>

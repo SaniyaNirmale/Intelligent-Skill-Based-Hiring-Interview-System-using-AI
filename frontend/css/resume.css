@@ -1,0 +1,155 @@
+/* WCI Engine - Resume & Skills Styles */
+
+.resume-container {
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+/* Upload Zone */
+.upload-zone {
+    border: 2px dashed var(--accent-primary);
+    background-color: var(--accent-light);
+    border-radius: 20px;
+    padding: 48px;
+    text-align: center;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.upload-zone:hover, .upload-zone.dragover {
+    background-color: #F5F3FF;
+    transform: scale(1.01);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    display: block;
+}
+
+.file-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: white;
+    border-radius: 12px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    box-shadow: 0 4px 6px -1px var(--shadow);
+}
+
+/* Extracted Results */
+.results-section {
+    display: none; /* Shown after extraction */
+    animation: fadeIn 0.5s ease;
+}
+
+.skill-category {
+    margin-bottom: 32px;
+}
+
+.skill-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.skill-tag-complex {
+    background: white;
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 120px;
+}
+
+.conf-bar {
+    height: 4px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.conf-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+.conf-high { background-color: var(--accent-primary); }
+.conf-med { background-color: var(--warning); }
+.conf-low { background-color: var(--text-secondary); }
+
+/* Comparison Table */
+.comparison-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+.comparison-table th {
+    padding: 12px 20px;
+    background: var(--bg-secondary);
+}
+
+.comparison-table td {
+    padding: 16px 20px;
+    background: white;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.comparison-table td:first-child {
+    border-left: 1px solid var(--border);
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.comparison-table td:last-child {
+    border-right: 1px solid var(--border);
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+.status-icon {
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(30, 27, 75, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.modal-content {
+    background: white;
+    padding: 32px;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

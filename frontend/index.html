@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCI Engine | AI-Powered Workforce Credibility</title>
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/landing.css">
+    <style>
+        .split-container {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+        .left-panel {
+            flex: 1;
+            background: var(--bg-sidebar);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 80px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        .left-panel::after {
+            content: '';
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, var(--accent-primary), transparent);
+            border-radius: 50%;
+            top: -100px;
+            left: -100px;
+            opacity: 0.2;
+            filter: blur(80px);
+        }
+        .right-panel {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+        }
+        .auth-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+        }
+        .role-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+        }
+        .role-btn {
+            padding: 10px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .role-btn.active {
+            background: white;
+            color: var(--accent-primary);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .input-group {
+            position: relative;
+            margin-bottom: 24px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 16px;
+            padding-top: 24px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+        .input-group label {
+            position: absolute;
+            left: 16px;
+            top: 18px;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            pointer-events: none;
+        }
+        .input-group input:focus + label,
+        .input-group input:not(:placeholder-shown) + label {
+            top: 8px;
+            font-size: 0.75rem;
+            color: var(--accent-primary);
+            font-weight: 700;
+        }
+        .input-group input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 4px var(--accent-light);
+        }
+        .brand-logo {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+        .brand-tagline {
+            color: var(--text-sidebar);
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        @media (max-width: 768px) {
+            .left-panel { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="split-container">
+        <div class="left-panel">
+            <div class="brand-logo">WCI Engine</div>
+            <div class="brand-tagline">AI-Powered Skill Verification &<br>Shortcut Detection</div>
+            <div style="width: 100%; height: 200px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.4), transparent); border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);"></div>
+        </div>
+        <div class="right-panel">
+            <div class="auth-card">
+                <h2 style="margin-bottom: 8px; font-size: 1.5rem;">Welcome to WCI Engine</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 32px;">Please sign in to continue</p>
+
+                <div class="role-toggle">
+                    <button class="role-btn active" onclick="setRole('candidate', this)">Candidate</button>
+                    <button class="role-btn" onclick="setRole('recruiter', this)">Recruiter</button>
+                </div>
+
+                <form id="loginForm" onsubmit="handleLogin(event, currentRole)">
+                    <div class="input-group">
+                        <input type="email" name="email" placeholder=" " required>
+                        <label>Email Address</label>
+                    </div>
+                    <div class="input-group">
+                        <input type="password" name="password" id="password" placeholder=" " required>
+                        <label>Password</label>
+                        <button type="button" onclick="togglePassword('password')" style="position: absolute; right: 16px; top: 18px; border: none; background: none; color: var(--text-secondary); cursor: pointer;">Show</button>
+                    </div>
+
+                    <div id="error-message" class="error-message" style="display: none; margin-bottom: 16px;"></div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 1rem; margin-bottom: 24px;">Sign In</button>
+                </form>
+
+                <p style="text-align: center; color: var(--text-secondary); font-size: 0.9rem;">
+                    Don't have an account? <a href="register.html" style="color: var(--accent-primary); font-weight: 600; text-decoration: none;">Register</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        let currentRole = 'candidate';
+        function setRole(role, btn) {
+            currentRole = role;
+            document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+    </script>
+</body>
+</html>
+

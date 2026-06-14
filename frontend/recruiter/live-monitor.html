@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Monitor | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        body { background: #f6f4fb; color: var(--text-primary); }
+        .layout { margin-left: 240px; padding: 32px; min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; }
+        .main-col, .detail-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+        .header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+        .header-row h1 { font-size: 1.6rem; margin-bottom: 6px; }
+        .header-row p { color: var(--text-secondary); font-size: 0.9rem; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 14px; }
+        .kpi-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04); }
+        .kpi-label { font-size: 0.72rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+        .kpi-value { font-size: 1.65rem; font-weight: 900; margin-top: 6px; }
+        .monitor-toolbar { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+        .segmented, .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .pill-btn { border: 1px solid var(--border); background: #fbfbff; color: var(--text-secondary); border-radius: 999px; padding: 8px 12px; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: 0.2s ease; }
+        .pill-btn.active { background: var(--accent-primary); color: white; border-color: var(--accent-primary); box-shadow: 0 8px 18px rgba(124, 58, 237, 0.22); }
+        .sort-select { border: 1px solid var(--border); background: white; border-radius: 10px; padding: 9px 12px; font-weight: 700; color: var(--text-primary); }
+        .sessions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+        .session-card { background: white; border: 2px solid var(--border); border-radius: 14px; overflow: hidden; cursor: pointer; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06); transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+        .session-card:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1); }
+        .session-card.selected { box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12), 0 16px 34px rgba(15, 23, 42, 0.1); }
+        .session-card.stable { border-color: #10b981; }
+        .session-card.warning { border-color: #f59e0b; }
+        .session-card.critical { border-color: #ef4444; }
+        .session-card.no_feed { border-color: #94a3b8; }
+        .thumb { aspect-ratio: 16/9; background: #050507; position: relative; display: flex; align-items: center; justify-content: center; color: #94a3b8; overflow: hidden; }
+        .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .badge-live { position: absolute; top: 10px; left: 10px; background: rgba(239, 68, 68, 0.92); color: white; border-radius: 999px; padding: 4px 9px; font-size: 0.65rem; font-weight: 900; }
+        .badge-mode { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.62); color: white; border-radius: 999px; padding: 4px 9px; font-size: 0.65rem; font-weight: 900; }
+        .session-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .session-title { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .session-title strong { font-size: 0.96rem; }
+        .attention { border-radius: 999px; padding: 4px 9px; font-size: 0.62rem; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
+        .attention.stable { background: rgba(16,185,129,0.12); color: #047857; }
+        .attention.warning { background: rgba(245,158,11,0.12); color: #b45309; }
+        .attention.critical { background: rgba(239,68,68,0.12); color: #b91c1c; }
+        .attention.no_feed { background: rgba(148,163,184,0.16); color: #475569; }
+        .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .mini-stat { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 10px; padding: 8px; }
+        .mini-stat span { display: block; font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; }
+        .mini-stat strong { display: block; margin-top: 3px; font-size: 0.86rem; }
+        .skills-line { display: flex; gap: 6px; flex-wrap: wrap; }
+        .skill-chip { font-size: 0.66rem; padding: 3px 7px; border-radius: 6px; background: rgba(124,58,237,0.08); color: #6d28d9; font-weight: 700; }
+        .detail-card { background: white; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06); overflow: hidden; }
+        .detail-header { padding: 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+        .detail-video { aspect-ratio: 16/9; background: #000; position: relative; display: flex; align-items: center; justify-content: center; color: #94a3b8; }
+        .detail-video img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .detail-section { padding: 18px; border-top: 1px solid var(--border); }
+        .metric-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: 0.86rem; }
+        .signal-bar { height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; margin-bottom: 16px; }
+        .signal-fill { height: 100%; width: 0%; transition: width 0.25s ease; }
+        .alerts-log { display: flex; flex-direction: column; gap: 8px; max-height: 230px; overflow-y: auto; }
+        .alert-item { border-left: 4px solid #ef4444; background: #fff7f7; border-radius: 8px; padding: 10px; font-size: 0.78rem; font-weight: 700; }
+        .empty-state { background: white; border: 1px dashed var(--border); border-radius: 16px; padding: 46px; text-align: center; color: var(--text-secondary); grid-column: 1/-1; }
+        @media (max-width: 1200px) {
+            .layout { grid-template-columns: 1fr; margin-left: 0; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar"></aside>
+
+    <main class="layout">
+        <section class="main-col">
+            <header class="header-row">
+                <div>
+                    <h1>Live Monitoring Center</h1>
+                    <p>AI-prioritized overview of active interview and coding sessions. Click any live card for full student details.</p>
+                </div>
+                <button class="btn btn-secondary" onclick="refreshSessions()">Refresh</button>
+            </header>
+
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-label">Active</div><div class="kpi-value" id="kpi-active">0</div></div>
+                <div class="kpi-card"><div class="kpi-label">Stable</div><div class="kpi-value" id="kpi-stable" style="color:#059669;">0</div></div>
+                <div class="kpi-card"><div class="kpi-label">Warning</div><div class="kpi-value" id="kpi-warning" style="color:#d97706;">0</div></div>
+                <div class="kpi-card"><div class="kpi-label">Critical</div><div class="kpi-value" id="kpi-critical" style="color:#dc2626;">0</div></div>
+                <div class="kpi-card"><div class="kpi-label">No Feed</div><div class="kpi-value" id="kpi-no-feed" style="color:#64748b;">0</div></div>
+            </div>
+
+            <div class="monitor-toolbar">
+                <div class="segmented">
+                    <button class="pill-btn active" data-mode="all" onclick="setModeFilter('all')">All Live</button>
+                    <button class="pill-btn" data-mode="interview" onclick="setModeFilter('interview')">Interview Active</button>
+                    <button class="pill-btn" data-mode="coding" onclick="setModeFilter('coding')">Coding Active</button>
+                </div>
+                <div class="filters">
+                    <button class="pill-btn active" data-filter="all" onclick="setAttentionFilter('all')">All</button>
+                    <button class="pill-btn" data-filter="attention" onclick="setAttentionFilter('attention')">Needs Attention</button>
+                    <button class="pill-btn" data-filter="stable" onclick="setAttentionFilter('stable')">Stable Sessions</button>
+                    <button class="pill-btn" data-filter="violations" onclick="setAttentionFilter('violations')">Violations</button>
+                    <button class="pill-btn" data-filter="no_feed" onclick="setAttentionFilter('no_feed')">No Feed</button>
+                    <select id="sort-select" class="sort-select" onchange="handleSortChange()">
+                        <option value="attention">Highest Attention First</option>
+                        <option value="score">Score High to Low</option>
+                        <option value="score_low">Score Low to High</option>
+                        <option value="progress">Progress High to Low</option>
+                        <option value="name">Name A-Z</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="sessions-grid" class="sessions-grid">
+                <div class="empty-state">Loading active live sessions...</div>
+            </div>
+        </section>
+
+        <aside class="detail-col">
+            <div class="detail-card">
+                <div class="detail-header">
+                    <div>
+                        <h2 id="detail-name" style="font-size:1.15rem; margin-bottom:4px;">Select a session</h2>
+                        <p id="detail-email" style="color:var(--text-secondary); font-size:0.82rem;">Click any live card to inspect details.</p>
+                    </div>
+                    <span id="detail-attention" class="attention no_feed">Idle</span>
+                </div>
+
+                <div class="detail-video">
+                    <div class="badge-live">LIVE STREAM</div>
+                    <img id="detail-camera" alt="Selected candidate camera">
+                    <div id="detail-camera-placeholder">No session selected</div>
+                </div>
+
+                <div class="detail-section">
+                    <div class="mini-grid">
+                        <div class="mini-stat"><span>Mode</span><strong id="detail-mode">--</strong></div>
+                        <div class="mini-stat"><span>Score</span><strong id="detail-score">--</strong></div>
+                        <div class="mini-stat"><span>Progress</span><strong id="detail-progress">--</strong></div>
+                        <div class="mini-stat"><span>Violations</span><strong id="detail-violations">--</strong></div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3 style="font-size:0.9rem; margin-bottom:12px;">Live KPIs</h3>
+                    <div class="metric-row"><span>Eye Contact</span><strong id="val-eye">--%</strong></div>
+                    <div class="signal-bar"><div id="fill-eye" class="signal-fill"></div></div>
+                    <div class="metric-row"><span>Voice Confidence</span><strong id="val-voice">--%</strong></div>
+                    <div class="signal-bar"><div id="fill-voice" class="signal-fill"></div></div>
+                    <div class="metric-row"><span>Response Speed</span><strong id="val-speed">--%</strong></div>
+                    <div class="signal-bar"><div id="fill-speed" class="signal-fill"></div></div>
+                </div>
+
+                <div class="detail-section">
+                    <h3 style="font-size:0.9rem; margin-bottom:12px;">Current Activity</h3>
+                    <p id="detail-question" style="font-weight:700; line-height:1.45;">Waiting for selected session...</p>
+                    <div id="detail-transcript" style="margin-top:12px; color:var(--text-secondary); font-size:0.82rem; line-height:1.5;">Live transcript/code updates will appear here.</div>
+                </div>
+
+                <div class="detail-section">
+                    <h3 style="font-size:0.9rem; margin-bottom:12px; color:#b91c1c;">Violation Log</h3>
+                    <div id="detail-alerts" class="alerts-log">
+                        <div style="color:var(--text-secondary); font-size:0.8rem;">No violations loaded.</div>
+                    </div>
+                </div>
+
+                <div class="detail-section" style="display:flex; gap:10px;">
+                    <button class="btn btn-warning" style="flex:1;" onclick="nudgeCandidate()">Nudge</button>
+                    <button class="btn btn-danger" style="flex:1;" onclick="flagSession()">Flag</button>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let ws = null;
+        let activeSessions = [];
+        let selectedSessionId = null;
+        let modeFilter = 'all';
+        let attentionFilter = 'all';
+        let refreshTimer = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user || user.role !== 'recruiter') {
+                window.location.href = '../index.html';
+                return;
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            selectedSessionId = params.get('session_id');
+            await refreshSessions();
+            refreshTimer = setInterval(refreshSessions, 8000);
+        });
+
+        async function refreshSessions() {
+            try {
+                activeSessions = await apiRequest('/recruiter/active-sessions');
+                updateKpis();
+                renderGrid();
+                if (selectedSessionId && !activeSessions.some(s => s.session_id === selectedSessionId)) {
+                    clearDetail();
+                }
+                if (!selectedSessionId && activeSessions.length > 0) {
+                    selectSession(activeSessions[0].session_id, false);
+                }
+            } catch (err) {
+                document.getElementById('sessions-grid').innerHTML = `<div class="empty-state">Failed to load live sessions. ${err.message}</div>`;
+            }
+        }
+
+        function updateKpis() {
+            document.getElementById('kpi-active').textContent = activeSessions.length;
+            document.getElementById('kpi-stable').textContent = activeSessions.filter(s => s.attention_level === 'stable').length;
+            document.getElementById('kpi-warning').textContent = activeSessions.filter(s => s.attention_level === 'warning').length;
+            document.getElementById('kpi-critical').textContent = activeSessions.filter(s => s.attention_level === 'critical').length;
+            document.getElementById('kpi-no-feed').textContent = activeSessions.filter(s => s.attention_level === 'no_feed').length;
+        }
+
+        function setModeFilter(mode) {
+            modeFilter = mode;
+            document.querySelectorAll('[data-mode]').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+            renderGrid();
+        }
+
+        function setAttentionFilter(filter) {
+            attentionFilter = filter;
+            document.querySelectorAll('[data-filter]').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === filter));
+            renderGrid();
+        }
+
+        function handleSortChange() {
+            renderGrid();
+            const sessions = getFilteredSessions();
+            if (sessions.length > 0 && !sessions.some(s => getNumericScore(s) !== null)) {
+                document.getElementById('sessions-grid').insertAdjacentHTML('afterbegin',
+                    '<div class="empty-state" style="grid-column: 1 / -1; padding: 14px;">No scored answers yet, so score sorting will update once candidates submit answers.</div>'
+                );
+            }
+        }
+
+        function getFilteredSessions() {
+            let sessions = [...activeSessions];
+            if (modeFilter !== 'all') sessions = sessions.filter(s => s.mode === modeFilter);
+            if (attentionFilter === 'attention') sessions = sessions.filter(s => ['warning', 'critical', 'no_feed'].includes(s.attention_level));
+            if (attentionFilter === 'stable') sessions = sessions.filter(s => s.attention_level === 'stable');
+            if (attentionFilter === 'violations') sessions = sessions.filter(s => s.violation_count > 0);
+            if (attentionFilter === 'no_feed') sessions = sessions.filter(s => s.attention_level === 'no_feed');
+
+            const sortBy = document.getElementById('sort-select').value;
+            sessions.sort((a, b) => {
+                if (sortBy === 'score') return compareScoreDesc(a, b) || compareAttention(b, a) || compareName(a, b);
+                if (sortBy === 'score_low') return compareScoreAsc(a, b) || compareAttention(b, a) || compareName(a, b);
+                if (sortBy === 'progress') return compareNumber(b.progress, a.progress) || compareAttention(b, a) || compareName(a, b);
+                if (sortBy === 'name') return compareName(a, b);
+                return compareAttention(b, a) || compareName(a, b);
+            });
+            return sessions;
+        }
+
+        function getNumericScore(session) {
+            const value = session.current_score;
+            if (value === null || value === undefined || value === '--' || value === '') return null;
+            const parsed = Number(String(value).replace('%', ''));
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function compareScoreDesc(first, second) {
+            const firstScore = getNumericScore(first);
+            const secondScore = getNumericScore(second);
+            if (firstScore === null && secondScore === null) return 0;
+            if (firstScore === null) return 1;
+            if (secondScore === null) return -1;
+            return secondScore - firstScore;
+        }
+
+        function compareScoreAsc(first, second) {
+            const firstScore = getNumericScore(first);
+            const secondScore = getNumericScore(second);
+            if (firstScore === null && secondScore === null) return 0;
+            if (firstScore === null) return 1;
+            if (secondScore === null) return -1;
+            return firstScore - secondScore;
+        }
+
+        function compareNumber(first, second) {
+            const a = Number(first);
+            const b = Number(second);
+            return (Number.isFinite(a) ? a : 0) - (Number.isFinite(b) ? b : 0);
+        }
+
+        function compareAttention(first, second) {
+            return compareNumber(first.attention_score, second.attention_score);
+        }
+
+        function compareName(first, second) {
+            return String(first.candidate_name || '').localeCompare(String(second.candidate_name || ''));
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('sessions-grid');
+            const sessions = getFilteredSessions();
+            if (sessions.length === 0) {
+                grid.innerHTML = '<div class="empty-state">No live sessions match this filter.</div>';
+                return;
+            }
+
+            grid.innerHTML = sessions.map(s => {
+                const img = s.has_live_feed && s.snapshot_url
+                    ? `<img src="${BASE_URL}${s.snapshot_url}?t=${Date.now()}" alt="${s.candidate_name} live feed">`
+                    : `<div style="text-align:center;"><div style="font-size:1.8rem;">📷</div><div style="font-size:0.75rem;">No feed</div></div>`;
+                const skills = (s.skills || []).slice(0, 3).map(skill => {
+                    const label = typeof skill === 'object' && skill !== null ? (skill.name || skill.skill || '') : skill;
+                    return `<span class="skill-chip">${label}</span>`;
+                }).join('');
+                const score = s.current_score == null ? '--' : `${s.current_score}%`;
+
+                return `
+                    <article class="session-card ${s.attention_level} ${s.session_id === selectedSessionId ? 'selected' : ''}" onclick="selectSession('${s.session_id}', true)">
+                        <div class="thumb">
+                            ${img}
+                            <div class="badge-live">LIVE</div>
+                            <div class="badge-mode">${s.mode === 'coding' ? 'Coding' : 'Interview'}</div>
+                        </div>
+                        <div class="session-body">
+                            <div class="session-title">
+                                <strong>${s.candidate_name}</strong>
+                                <span class="attention ${s.attention_level}">${formatAttention(s.attention_level)}</span>
+                            </div>
+                            <div style="font-size:0.78rem; color:var(--text-secondary);">${s.job_role || 'Skill Evaluation'}</div>
+                            <div class="mini-grid">
+                                <div class="mini-stat"><span>Score</span><strong>${score}</strong></div>
+                                <div class="mini-stat"><span>Progress</span><strong>Q${s.question_num}/${s.total_questions}</strong></div>
+                                <div class="mini-stat"><span>Violations</span><strong>${s.violation_count}</strong></div>
+                                <div class="mini-stat"><span>Feed</span><strong>${s.has_live_feed ? 'Live' : 'Missing'}</strong></div>
+                            </div>
+                            <div class="skills-line">${skills}</div>
+                            ${s.last_alert ? `<div style="font-size:0.72rem; color:#b91c1c; font-weight:700;">Latest: ${s.last_alert}</div>` : ''}
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function formatAttention(level) {
+            return ({ stable: 'Stable', warning: 'Warning', critical: 'Critical', no_feed: 'No Feed' })[level] || 'Live';
+        }
+
+        async function selectSession(sessionId, updateUrl) {
+            selectedSessionId = sessionId;
+            if (updateUrl) history.replaceState(null, '', `live-monitor.html?session_id=${sessionId}`);
+            renderGrid();
+            const session = activeSessions.find(s => s.session_id === sessionId);
+            if (session) populateDetail(session);
+            await loadExistingViolations();
+            connectWS();
+        }
+
+        function populateDetail(session) {
+            document.getElementById('detail-name').textContent = session.candidate_name;
+            document.getElementById('detail-email').textContent = session.candidate_email || '--';
+            const attention = document.getElementById('detail-attention');
+            attention.className = `attention ${session.attention_level}`;
+            attention.textContent = formatAttention(session.attention_level);
+            document.getElementById('detail-mode').textContent = session.mode === 'coding' ? 'Coding' : 'Interview';
+            document.getElementById('detail-score').textContent = session.current_score == null ? '--' : `${session.current_score}%`;
+            document.getElementById('detail-progress').textContent = `Q${session.question_num}/${session.total_questions}`;
+            document.getElementById('detail-violations').textContent = session.violation_count;
+            document.getElementById('detail-question').textContent = session.job_role || 'Waiting for activity...';
+
+            const img = document.getElementById('detail-camera');
+            const placeholder = document.getElementById('detail-camera-placeholder');
+            if (session.has_live_feed && session.snapshot_url) {
+                img.src = `${BASE_URL}${session.snapshot_url}?t=${Date.now()}`;
+                img.style.display = 'block';
+                placeholder.style.display = 'none';
+            } else {
+                img.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.textContent = 'No live camera feed yet';
+            }
+        }
+
+        function clearDetail() {
+            selectedSessionId = null;
+            if (ws) ws.close();
+            ws = null;
+            document.getElementById('detail-name').textContent = 'Select a session';
+            document.getElementById('detail-email').textContent = 'Click any live card to inspect details.';
+            document.getElementById('detail-camera').style.display = 'none';
+            document.getElementById('detail-camera-placeholder').style.display = 'block';
+            document.getElementById('detail-camera-placeholder').textContent = 'No session selected';
+        }
+
+        function connectWS() {
+            if (!selectedSessionId) return;
+            if (ws) ws.close();
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsHost = `${window.location.hostname}:8000`;
+            ws = new WebSocket(`${wsProtocol}//${wsHost}/ws/recruiter/${selectedSessionId}`);
+            ws.onmessage = event => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'live_update') updateDetailLive(data.payload);
+                    if (data.type === 'snapshot') updateCameraFeed(data.image);
+                } catch (e) {
+                    console.error('Live monitor websocket parse failed', e);
+                }
+            };
+        }
+
+        function updateDetailLive(payload) {
+            if (payload.question_num && payload.total_questions) {
+                document.getElementById('detail-progress').textContent = `Q${payload.question_num}/${payload.total_questions}`;
+            }
+            if (payload.current_score !== undefined) document.getElementById('detail-score').textContent = `${payload.current_score}%`;
+            if (payload.question_text) document.getElementById('detail-question').textContent = payload.question_text;
+            if (payload.new_transcript) document.getElementById('detail-transcript').textContent = payload.new_transcript;
+            if (payload.code_snippet !== undefined) document.getElementById('detail-transcript').textContent = payload.code_snippet || '# Candidate has not written code yet.';
+            if (payload.signals) {
+                updateSignal('eye', payload.signals.eye_contact);
+                updateSignal('voice', payload.signals.confidence);
+                updateSignal('speed', payload.signals.response_time);
+            }
+            if (payload.alert) appendProctorAlertLog(payload.alert);
+        }
+
+        function updateSignal(id, value) {
+            const safe = Number.isFinite(Number(value)) ? Number(value) : 0;
+            document.getElementById(`val-${id}`).textContent = `${safe}%`;
+            const fill = document.getElementById(`fill-${id}`);
+            fill.style.width = `${safe}%`;
+            fill.style.background = safe >= 70 ? '#10b981' : safe >= 40 ? '#f59e0b' : '#ef4444';
+        }
+
+        function updateCameraFeed(base64) {
+            const img = document.getElementById('detail-camera');
+            const placeholder = document.getElementById('detail-camera-placeholder');
+            img.src = base64;
+            img.style.display = 'block';
+            placeholder.style.display = 'none';
+        }
+
+        async function loadExistingViolations() {
+            const log = document.getElementById('detail-alerts');
+            if (!selectedSessionId) return;
+            try {
+                const violations = await apiRequest(`/recruiter/session/${selectedSessionId}/violations`);
+                if (!violations || violations.length === 0) {
+                    log.innerHTML = '<div style="color:var(--text-secondary); font-size:0.8rem;">No violations logged.</div>';
+                    return;
+                }
+                log.innerHTML = violations.slice().reverse().map(v => `<div class="alert-item">${v}</div>`).join('');
+            } catch (e) {
+                log.innerHTML = '<div style="color:var(--text-secondary); font-size:0.8rem;">Could not load violations.</div>';
+            }
+        }
+
+        function appendProctorAlertLog(message) {
+            const log = document.getElementById('detail-alerts');
+            if (log.children.length === 1 && log.textContent.includes('No violations')) log.innerHTML = '';
+            const item = document.createElement('div');
+            item.className = 'alert-item';
+            item.textContent = message;
+            log.prepend(item);
+        }
+
+        function nudgeCandidate() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'nudge_candidate' }));
+            }
+        }
+
+        async function flagSession() {
+            if (!selectedSessionId) return;
+            if (confirm('Flag this session for review?')) {
+                await apiRequest(`/recruiter/flag-session/${selectedSessionId}`, 'POST');
+                appendProctorAlertLog('Recruiter manually flagged this session for review.');
+            }
+        }
+    </script>
+</body>
+</html>

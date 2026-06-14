@@ -1,0 +1,53 @@
+/* WCI Engine - Analytics Dashboard Styles */
+
+.analytics-container {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* Filters */
+.analytics-filters {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+.chart-card {
+    padding: 24px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    height: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.chart-canvas-container {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+}
+
+canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Table Area */
+.history-section {
+    margin-top: 16px;
+}
+
+@media (max-width: 1024px) {
+    .charts-grid { grid-template-columns: 1fr; }
+}

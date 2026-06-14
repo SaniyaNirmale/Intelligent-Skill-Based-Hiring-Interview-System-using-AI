@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruiter Dashboard | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        .layout { margin-left: 240px; padding: 40px; display: grid; grid-template-columns: 1fr 350px; gap: 32px; transition: margin-left 0.3s; }
+        .main-col { display: flex; flex-direction: column; gap: 32px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+        
+        .live-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+        
+        .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 16px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+        td { padding: 16px; font-size: 0.875rem; border-bottom: 1px solid var(--border); }
+
+        .active-session-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); }
+        .active-session-item:last-child { border-bottom: none; }
+        
+        .alert-card { display: flex; gap: 16px; padding: 16px; border-radius: 10px; background: #FFF7ED; border: 1px solid #FFEDD5; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar placeholder (populated via sidebar.js) -->
+        <div class="sidebar-logo"><span class="logo-main">WCI Engine</span><span class="logo-sub">Workforce Credibility Index</span></div>
+        <nav class="nav-list">
+            <a href="dashboard.html" class="nav-link">Dashboard</a>
+            <a href="candidates.html" class="nav-link">Candidates</a>
+            <a href="live-monitor.html" class="nav-link">Live Monitor</a>
+            <a href="reports.html" class="nav-link">Reports</a>
+            <a href="analytics.html" class="nav-link">Analytics</a>
+            <a href="settings.html" class="nav-link">Settings</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile"><div class="user-avatar">?</div><div class="user-info"><span class="user-name">Loading...</span><span class="user-role">Recruiter</span></div></div>
+            <button class="btn logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+    </aside>
+
+    <main class="layout">
+        <div class="main-col">
+            <header>
+                <h1 style="font-size: 1.5rem; margin-bottom: 4px;">Recruiter Overview</h1>
+                <p style="color: var(--text-secondary); font-size: 0.875rem;">Manage candidates and monitor credibility assessments in real-time.</p>
+            </header>
+
+            <div class="stats-grid">
+                <div class="card stat-card">
+                    <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Total Candidates</span>
+                    <div class="stat-value mono" id="stat-total">0</div>
+                </div>
+                <div class="card stat-card">
+                    <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Active Interviews</span>
+                    <div class="stat-value mono" id="stat-active" style="display: flex; align-items: center;">
+                        <span id="pulsing-dot" style="display: none;" class="live-dot"></span>
+                        <span id="active-count">0</span>
+                    </div>
+                </div>
+                <div class="card stat-card">
+                    <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Avg Credibility</span>
+                    <div class="stat-value mono" id="stat-avg">--</div>
+                </div>
+                <div class="card stat-card">
+                    <span class="text-secondary" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Shortcut Alerts Today</span>
+                    <div id="stat-alerts">0</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div style="padding: 20px; font-weight: 700;">Recent Candidates</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Skills</th>
+                            <th>Score</th>
+                            <th>Shortcut</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-candidates-body"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3 style="font-size: 1rem; margin-bottom: 20px;">Shortcut Detections Today</h3>
+                <div id="shortcut-alerts-container"></div>
+            </div>
+        </div>
+
+        <div class="side-col">
+            <div class="card" style="border-top: 4px solid var(--success); padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="font-size: 1rem;">🔴 LIVE Proctoring</h3>
+                    <span class="badge badge-info" id="live-count-badge">0 Active</span>
+                </div>
+                <!-- This new section shows real-time thumbnails from the candidates' cameras -->
+                <div id="live-proctoring-grid" style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+                    <p style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.875rem;">Waiting for candidate streams...</p>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 24px; border-left: 4px solid var(--accent-primary);">
+                <h3 style="font-size: 0.9rem; margin-bottom: 12px;">Security Insights</h3>
+                <div id="security-insight-text" style="font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary);">
+                    Integrity monitoring is active across all sessions. No critical breaches detected in the last hour.
+                </div>
+            </div>
+
+            <!-- high-level knowledge insights panel -->
+            <div class="card" id="knowledge-insights-card" style="margin-top: 24px; border-left: 4px solid var(--accent-secondary); display: none;">
+                <h3 style="font-size: 0.9rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    🧠 Company Knowledge Gaps
+                </h3>
+                <div id="knowledge-insights-list" style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <div class="card" style="background: var(--bg-sidebar); color: white; border: none; margin-top: 24px;">
+                <h3 style="font-size: 1rem; margin-bottom: 12px;">Job Posting Flow</h3>
+                <p style="font-size: 0.875rem; color: var(--text-sidebar); margin-bottom: 20px;">Create job roles once. Students can view openings and start official assessments from their portal.</p>
+                <button class="btn btn-primary" style="width: 100%;" onclick="window.location.href='jobs.html'">Manage Job Roles</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user || user.role !== 'recruiter') {
+                window.location.href = '../index.html';
+                return;
+            }
+
+            refreshDashboard();
+            setInterval(refreshDashboard, 10000); // Refresh every 10s
+        });
+
+        async function refreshDashboard() {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            try {
+                const data = await apiRequest(`/recruiter/dashboard/${user.user_id}`);
+                
+                // Populate Stats
+                document.getElementById('stat-total').textContent = data.total_candidates;
+                document.getElementById('active-count').textContent = data.active_interviews;
+                document.getElementById('pulsing-dot').style.display = data.active_interviews > 0 ? 'inline-block' : 'none';
+                document.getElementById('stat-avg').textContent = data.avg_credibility_score || '—';
+                
+                const alertEl = document.getElementById('stat-alerts');
+                if (data.shortcut_alerts_today > 0) {
+                    alertEl.innerHTML = `<span class="stat-value mono" style="color: var(--danger)">${data.shortcut_alerts_today}</span> <span class="badge badge-hard">Flagged</span>`;
+                } else {
+                    alertEl.innerHTML = `<div class="stat-value mono">0</div>`;
+                }
+
+                renderRecentCandidates(data.recent_candidates);
+                renderLiveInterviews(data.active_sessions);
+                renderShortcutAlerts(data.shortcut_alerts);
+                renderKnowledgeInsights(data.knowledge_insights);
+
+            } catch (err) {
+                console.error("Dashboard refresh failed:", err);
+            }
+        }
+
+        function renderRecentCandidates(candidates) {
+            const body = document.getElementById('recent-candidates-body');
+            if (candidates.length === 0) {
+                body.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">No candidates have completed interviews yet</td></tr>';
+                return;
+            }
+
+            body.innerHTML = candidates.map(c => `
+                <tr>
+                    <td>
+                        <div style="font-weight: 600;">${c.name}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">${c.date}</div>
+                    </td>
+                    <td>${c.skills.map(s => {
+                        const skillName = typeof s === 'object' && s !== null ? (s.name || s.label || '') : s;
+                        return `<span class="tag">${skillName}</span>`;
+                    }).join(' ')}</td>
+                    <td class="mono" style="font-weight: 700;">${c.score || '—'}%</td>
+                    <td>${c.shortcut ? '⚠️ <span style="color: var(--danger)">Flagged</span>' : '✅ <span style="color: var(--success)">Clean</span>'}</td>
+                    <td><span class="badge ${c.status === 'in_progress' ? 'badge-info' : 'badge-easy'}">${c.status.replace('_', ' ')}</span></td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            ${c.status === 'in_progress' ? `<button class="btn btn-primary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="window.location.href='live-monitor.html?session_id=${c.session_id}'">Monitor Live</button>` : `<button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="window.location.href='report.html?report_id=${c.report_id}'">View Report</button>`}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderLiveInterviews(sessions) {
+            const grid = document.getElementById('live-proctoring-grid');
+            document.getElementById('live-count-badge').textContent = `${sessions.length} Active`;
+            
+            if (sessions.length === 0) {
+                grid.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.875rem;">Waiting for candidate streams...</p>';
+                return;
+            }
+
+            grid.innerHTML = sessions.map(s => `
+                <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; transition: var(--transition);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; font-size: 0.85rem;">${s.candidate_name}</span>
+                        <span class="badge ${s.integrity_score >= 85 ? 'badge-easy' : s.integrity_score >= 60 ? 'badge-info' : 'badge-hard'}" style="font-size: 0.7rem; font-family: monospace;">${s.integrity_score}% Trust</span>
+                    </div>
+                    
+                    ${s.has_live_feed ? `
+                        <div style="position: relative; border-radius: 6px; overflow: hidden; aspect-ratio: 16/9;">
+                            <img src="${BASE_URL}${s.snapshot_url}?t=${Date.now()}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;" />
+                            <div style="position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; color: white;">Q${s.question_num}</div>
+                        </div>
+                    ` : `
+                        <div style="width: 100%; aspect-ratio: 16/9; background: #0b0f1a; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: 1px dashed rgba(124, 58, 237, 0.2);">
+                            <div style="text-align: center; color: var(--text-secondary); font-size: 0.7rem;">
+                                <span class="live-dot" style="margin-bottom: 4px; background: var(--accent-primary);"></span>
+                                <div>Initializing live feed...</div>
+                            </div>
+                        </div>
+                    `}
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary);">
+                        <span>Status: Active</span>
+                        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.7rem;" onclick="window.location.href='live-monitor.html?session_id=${s.session_id}'">Monitor Live</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderKnowledgeInsights(insights) {
+            const card = document.getElementById('knowledge-insights-card');
+            const list = document.getElementById('knowledge-insights-list');
+            if (!insights || insights.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+            card.style.display = 'block';
+            list.innerHTML = insights.map(i => `
+                <div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
+                        <span style="font-weight: 600;">${i.skill}</span>
+                        <span class="badge ${i.health === 'high' ? 'badge-easy' : i.health === 'medium' ? 'badge-info' : 'badge-hard'}">${i.avg_score}% Avg</span>
+                    </div>
+                    <div style="height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                        <div style="width: ${i.avg_score}%; height: 100%; background: ${i.health === 'high' ? 'var(--success)' : i.health === 'medium' ? 'var(--warning)' : 'var(--danger)'}; border-radius: 3px;"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderShortcutAlerts(alerts) {
+            const container = document.getElementById('shortcut-alerts-container');
+            if (alerts.length === 0) {
+                container.innerHTML = '<div class="shortcut-banner clean" style="background: #DCFCE7; color: var(--success); padding: 16px; border-radius: 10px; text-align: center;">✓ No shortcut alerts today</div>';
+                return;
+            }
+
+            container.innerHTML = alerts.map(a => `
+                <div class="alert-card">
+                    <div style="font-size: 1.25rem;">🚩</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; font-size: 0.875rem;">${a.candidate_name}</div>
+                        <div style="font-size: 0.8125rem; color: #9A3412;">${a.reason} during "${a.question}"</div>
+                    </div>
+                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; align-self: center;" onclick="window.location.href='report.html?report_id=${a.report_id}'">Review</button>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

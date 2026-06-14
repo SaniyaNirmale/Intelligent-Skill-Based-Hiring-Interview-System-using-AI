@@ -1,0 +1,98 @@
+{
+    "Python": [
+        "Machine Learning",
+        "Data Analysis",
+        "Django",
+        "FastAPI",
+        "Flask",
+        "Automation"
+    ],
+    "Machine Learning": [
+        "Deep Learning",
+        "Transfer Learning",
+        "Transformers",
+        "PyTorch",
+        "TensorFlow",
+        "Scikit-learn",
+        "Predictive Modeling",
+        "NLP"
+    ],
+    "Deep Learning": [
+        "Transformers",
+        "Transfer Learning",
+        "Neural Networks"
+    ],
+    "Transformers": [
+        "Hugging Face",
+        "LangChain",
+        "LLM APIs"
+    ],
+    "LangChain": [
+        "LangGraph",
+        "RAG",
+        "Prompt Engineering"
+    ],
+    "RAG": [
+        "Vector Databases",
+        "Embedding-Based Retrieval",
+        "FAISS",
+        "LLM APIs"
+    ],
+    "Vector Databases": [
+        "Embedding-Based Retrieval",
+        "Semantic Search"
+    ],
+    "JavaScript": [
+        "React",
+        "React Native",
+        "Node.js",
+        "API Integration",
+        "JSON Handling",
+        "JWT Authentication"
+    ],
+    "HTML": [
+        "CSS",
+        "React"
+    ],
+    "CSS": [
+        "React",
+        "React Native"
+    ],
+    "SQL": [
+        "Relational Databases",
+        "PostgreSQL",
+        "MySQL",
+        "SQLite"
+    ],
+    "Database Systems": [
+        "SQL",
+        "MongoDB",
+        "Vector Databases"
+    ],
+    "Data Structures": [
+        "Algorithms"
+    ],
+    "OOP": [
+        "Django",
+        "React Native"
+    ],
+    "C": [
+        "Microcontrollers",
+        "Arduino",
+        "Sensor Integration",
+        "LCD Interfaces",
+        "Operating Systems"
+    ],
+    "Microcontrollers": [
+        "Arduino",
+        "Sensor Integration",
+        "LCD Interfaces"
+    ],
+    "REST APIs": [
+        "API Integration",
+        "Django REST Framework"
+    ],
+    "Django": [
+        "Django REST Framework"
+    ]
+}

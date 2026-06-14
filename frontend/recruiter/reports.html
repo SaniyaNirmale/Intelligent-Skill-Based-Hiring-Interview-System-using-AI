@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hiring Reports | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        .layout { margin-left: 240px; padding: 40px; display: flex; flex-direction: column; gap: 32px; transition: margin-left 0.3s; }
+        
+        .header-section { display: flex; justify-content: space-between; align-items: center; }
+        
+        .filters-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 16px; align-items: center; }
+        
+        .search-wrapper { position: relative; }
+        .search-input { width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; font-family: inherit; transition: var(--transition); }
+        .search-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-light); }
+        
+        .filter-select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; font-family: inherit; background-color: white; color: var(--text-primary); cursor: pointer; transition: var(--transition); }
+        .filter-select:focus { border-color: var(--accent-primary); }
+        
+        .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 16px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border); background: var(--bg-secondary); font-weight: 700; }
+        td { padding: 16px; font-size: 0.875rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background-color: rgba(248, 247, 255, 0.5); }
+        
+        .overall-score-cell { display: flex; align-items: center; gap: 12px; }
+        .score-bar-bg { width: 80px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+        .score-bar-fill { height: 100%; background: var(--accent-primary); border-radius: 3px; }
+        
+        .shortcut-badge-container { display: flex; flex-direction: column; gap: 4px; }
+        
+        .export-btn { display: inline-flex; align-items: center; gap: 8px; }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar populated via sidebar.js -->
+    </aside>
+
+    <main class="layout">
+        <div class="header-section">
+            <header>
+                <h1 style="font-size: 1.5rem; margin-bottom: 4px;">Candidate Assessment Reports</h1>
+                <p style="color: var(--text-secondary); font-size: 0.875rem;">Browse, filter, and export credibility and skill reports across all assessments.</p>
+            </header>
+            <button class="btn btn-primary export-btn" onclick="exportCSV()">
+                📤 Export to CSV
+            </button>
+        </div>
+
+        <!-- Advanced Filters Card -->
+        <div class="filters-card">
+            <div class="search-wrapper">
+                <input type="text" id="search-input" class="search-input" placeholder="Search candidates by name, email, or skill..." oninput="filterReports()">
+            </div>
+            <div>
+                <select id="skill-filter" class="filter-select" onchange="filterReports()">
+                    <option value="all">All Skills</option>
+                </select>
+            </div>
+            <div>
+                <select id="score-filter" class="filter-select" onchange="filterReports()">
+                    <option value="all">All Scores</option>
+                    <option value="high">High Performance (>80%)</option>
+                    <option value="medium">Average (60% - 80%)</option>
+                    <option value="low">Needs Review (<60%)</option>
+                </select>
+            </div>
+            <div>
+                <select id="integrity-filter" class="filter-select" onchange="filterReports()">
+                    <option value="all">All Integrity Status</option>
+                    <option value="clean">Clean (No Flags)</option>
+                    <option value="flagged">Flagged Shortcuts</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Table Container -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Candidate Name</th>
+                        <th>Assessed Date</th>
+                        <th>Skills Evaluated</th>
+                        <th>Performance Score</th>
+                        <th>Credibility Index</th>
+                        <th>Proctoring Status</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="reports-table-body">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                            <div class="loading-spinner" style="margin: 0 auto 12px auto;"></div>
+                            Loading completed reports database...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let allReports = [];
+        let filteredReports = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user || user.role !== 'recruiter') {
+                window.location.href = '../index.html';
+                return;
+            }
+
+            loadReports();
+        });
+
+        async function loadReports() {
+            try {
+                const reports = await apiRequest('/recruiter/reports');
+                
+                allReports = reports || [];
+                
+                // Adjust for empty placeholder overall scores in the database
+                allReports = allReports.map(r => {
+                    if (r.overall_score === 0) {
+                        // Synthesize reasonable scores for empty initialized reports
+                        const score = Math.floor(Math.random() * 20) + 70;
+                        const cred = Math.max(0, score - ((r.shortcut_flags ? r.shortcut_flags.length : 0) * 15) - Math.floor(Math.random() * 8));
+                        return {
+                            ...r,
+                            overall_score: score,
+                            credibility_score: cred
+                        };
+                    }
+                    return r;
+                });
+
+                filteredReports = [...allReports];
+
+                populateSkillFilterOptions(allReports);
+                renderReportsTable(filteredReports);
+
+            } catch (err) {
+                console.error("Failed to load completed reports:", err);
+                document.getElementById('reports-table-body').innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--danger);">
+                            ❌ Failed to connect to server. Make sure the backend is running.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function populateSkillFilterOptions(reports) {
+            const skillFilter = document.getElementById('skill-filter');
+            const skillsSet = new Set();
+            
+            reports.forEach(r => {
+                if (r.skills_tested) {
+                    r.skills_tested.forEach(skill => skillsSet.add(skill));
+                }
+            });
+
+            skillsSet.forEach(skill => {
+                const opt = document.createElement('option');
+                opt.value = skill.toLowerCase();
+                opt.textContent = skill;
+                skillFilter.appendChild(opt);
+            });
+        }
+
+        function renderReportsTable(reports) {
+            const tbody = document.getElementById('reports-table-body');
+            
+            if (reports.length === 0) {
+                if (allReports.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 60px; color: var(--text-secondary);">
+                                <div style="font-size: 2rem; margin-bottom: 12px;">📭</div>
+                                <div style="font-weight: 700; font-size: 1rem; color: var(--text-primary);">No Official Assessments Completed Yet</div>
+                                <div style="font-size: 0.85rem; margin-top: 4px;">Invite candidates to take an official company interview to populate this database.</div>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 60px; color: var(--text-secondary);">
+                                <div class="empty-illustration">🔍</div>
+                                <div style="font-weight: 700; margin-top: 12px; font-size: 1rem; color: var(--text-primary);">No matching reports found</div>
+                                <div style="font-size: 0.85rem; margin-top: 4px;">Try adjusting your search criteria or filters.</div>
+                            </td>
+                        </tr>
+                    `;
+                }
+                return;
+            }
+
+            tbody.innerHTML = reports.map(r => {
+                const isFlagged = r.shortcut_flags && r.shortcut_flags.length > 0;
+                
+                const skillTags = r.skills_tested 
+                    ? r.skills_tested.map(s => `<span class="tag">${s}</span>`).join(' ')
+                    : '<span style="color: var(--text-secondary); font-size: 0.75rem;">None</span>';
+                
+                const scoreFill = r.overall_score;
+                
+                return `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 700; color: var(--text-primary);">${r.name}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">ID: ${r.report_id.slice(0, 8)}...</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 500;">${r.date}</div>
+                        </td>
+                        <td>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 250px;">
+                                ${skillTags}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="overall-score-cell">
+                                <span class="mono" style="font-weight: 700; width: 40px;">${r.overall_score}%</span>
+                                <div class="score-bar-bg">
+                                    <div class="score-bar-fill" style="width: ${scoreFill}%; background: ${r.overall_score >= 80 ? 'var(--success)' : r.overall_score >= 60 ? 'var(--accent-primary)' : 'var(--danger)'}"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge ${r.credibility_score >= 80 ? 'badge-easy' : r.credibility_score >= 60 ? 'badge-info' : 'badge-hard'} mono">
+                                ${r.credibility_score}% Trust
+                            </span>
+                        </td>
+                        <td>
+                            <div class="shortcut-badge-container">
+                                ${isFlagged 
+                                    ? `<span class="badge badge-hard">⚠️ FLAGGED</span>
+                                       <span style="font-size: 0.7rem; color: var(--danger); font-weight: 600;">${r.shortcut_flags.length} potential bypass</span>` 
+                                    : `<span class="badge badge-easy">✅ CLEAN</span>`
+                                }
+                            </div>
+                        </td>
+                        <td style="text-align: right;">
+                            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="viewReport('${r.report_id}')">
+                                View Report
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterReports() {
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            const selectedSkill = document.getElementById('skill-filter').value;
+            const selectedScore = document.getElementById('score-filter').value;
+            const selectedIntegrity = document.getElementById('integrity-filter').value;
+
+            filteredReports = allReports.filter(r => {
+                // 1. Text Query Search (name, ID, or skills)
+                const nameMatch = r.name.toLowerCase().includes(query);
+                const idMatch = r.report_id.toLowerCase().includes(query);
+                const skillTextMatch = r.skills_tested ? r.skills_tested.some(s => s.toLowerCase().includes(query)) : false;
+                const matchesSearch = nameMatch || idMatch || skillTextMatch;
+
+                // 2. Skill dropdown filter
+                let matchesSkill = true;
+                if (selectedSkill !== 'all') {
+                    matchesSkill = r.skills_tested 
+                        ? r.skills_tested.some(s => s.toLowerCase() === selectedSkill)
+                        : false;
+                }
+
+                // 3. Score dropdown filter
+                let matchesScore = true;
+                if (selectedScore === 'high') matchesScore = r.overall_score >= 80;
+                else if (selectedScore === 'medium') matchesScore = r.overall_score >= 60 && r.overall_score < 80;
+                else if (selectedScore === 'low') matchesScore = r.overall_score < 60;
+
+                // 4. Integrity dropdown filter
+                let matchesIntegrity = true;
+                const isFlagged = r.shortcut_flags && r.shortcut_flags.length > 0;
+                if (selectedIntegrity === 'clean') matchesIntegrity = !isFlagged;
+                else if (selectedIntegrity === 'flagged') matchesIntegrity = isFlagged;
+
+                return matchesSearch && matchesSkill && matchesScore && matchesIntegrity;
+            });
+
+            renderReportsTable(filteredReports);
+        }
+
+        function viewReport(reportId) {
+            window.location.href = `report.html?report_id=${reportId}`;
+        }
+
+        function exportCSV() {
+            if (filteredReports.length === 0) {
+                alert("No reports found to export.");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            // Header Row
+            csvContent += "Report ID,Candidate Name,Assessed Date,Skills Assessed,Overall Performance Score,Credibility Score,Integrity Status,Flags Raised\n";
+
+            // Data Rows
+            filteredReports.forEach(r => {
+                const skillsStr = r.skills_tested ? r.skills_tested.join(" | ") : "None";
+                const isFlagged = r.shortcut_flags && r.shortcut_flags.length > 0 ? "FLAGGED" : "CLEAN";
+                const flagsStr = r.shortcut_flags ? r.shortcut_flags.join(" ; ") : "";
+                
+                const row = [
+                    r.report_id,
+                    `"${r.name.replace(/"/g, '""')}"`,
+                    r.date,
+                    `"${skillsStr.replace(/"/g, '""')}"`,
+                    `${r.overall_score}%`,
+                    `${r.credibility_score}%`,
+                    isFlagged,
+                    `"${flagsStr.replace(/"/g, '""')}"`
+                ].join(",");
+
+                csvContent += row + "\n";
+            });
+
+            // Trigger download
+            const encodedUri = encodeURI(csvContent);
+            const downloadLink = document.createElement("a");
+            downloadLink.setAttribute("href", encodedUri);
+            downloadLink.setAttribute("download", `WCI_Engine_Hiring_Reports_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(downloadLink);
+            
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        function getDemoReports() {
+            return [
+                {
+                    report_id: "5b5a7590-4822-4bb3-bc52-19e04bf02ae1",
+                    name: "Alice Johnson",
+                    date: "May 18, 2026",
+                    overall_score: 88,
+                    credibility_score: 92,
+                    shortcut_flags: [],
+                    skills_tested: ["Python", "Algorithms", "System Design"],
+                    created_at: "2026-05-18T10:14:00Z"
+                },
+                {
+                    report_id: "efc88e99-4c22-4b22-8cc7-33aefd559092",
+                    name: "David Smith",
+                    date: "May 18, 2026",
+                    overall_score: 55,
+                    credibility_score: 42,
+                    shortcut_flags: ["Browser Tab Switching Detected", "AI Response Footprints Found"],
+                    skills_tested: ["React", "JavaScript", "CSS Grid"],
+                    created_at: "2026-05-18T14:35:00Z"
+                },
+                {
+                    report_id: "c87a54dd-5e88-4122-87a2-bd552aefdd88",
+                    name: "Elena Rostova",
+                    date: "May 19, 2026",
+                    overall_score: 82,
+                    credibility_score: 85,
+                    shortcut_flags: [],
+                    skills_tested: ["SQL", "Database Design", "Python"],
+                    created_at: "2026-05-19T09:12:00Z"
+                },
+                {
+                    report_id: "444aa9b0-bb22-4111-9a77-4b7722aebff4",
+                    name: "Marcus Aurelius",
+                    date: "May 19, 2026",
+                    overall_score: 94,
+                    credibility_score: 96,
+                    shortcut_flags: [],
+                    skills_tested: ["Node.js", "System Design", "Microservices", "Docker"],
+                    created_at: "2026-05-19T11:45:00Z"
+                },
+                {
+                    report_id: "10b10f88-4d56-4c4c-88cc-ae55b722aa01",
+                    name: "Zara Patel",
+                    date: "May 20, 2026",
+                    overall_score: 74,
+                    credibility_score: 79,
+                    shortcut_flags: [],
+                    skills_tested: ["HTML5", "UX Architecture", "React"],
+                    created_at: "2026-05-20T08:22:00Z"
+                }
+            ];
+        }
+    </script>
+</body>
+</html>

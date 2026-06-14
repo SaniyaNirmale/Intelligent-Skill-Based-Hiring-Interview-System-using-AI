@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Report | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        .layout { margin-left: 240px; padding: 40px; display: grid; grid-template-columns: 1fr 320px; gap: 32px; transition: margin-left 0.3s; }
+        .main-col { display: flex; flex-direction: column; gap: 32px; }
+        .header-section { display: flex; justify-content: space-between; align-items: flex-start; }
+        
+        .gauge-container { position: relative; width: 200px; height: 100px; margin: 0 auto; overflow: hidden; }
+        .gauge-bg { fill: none; stroke: var(--bg-secondary); stroke-width: 12; }
+        .gauge-fill { fill: none; stroke: var(--accent-primary); stroke-width: 12; stroke-dasharray: 283; stroke-dashoffset: 283; transition: stroke-dashoffset 1s ease-out; }
+        .gauge-val { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-family: 'JetBrains Mono', monospace; font-size: 2rem; font-weight: 800; }
+
+        .metric-row { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .metric-bar { height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+        .metric-fill { height: 100%; background: var(--accent-primary); transition: width 1s ease-out; }
+
+        .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 16px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+        td { padding: 16px; font-size: 0.875rem; border-bottom: 1px solid var(--border); }
+
+        .shortcut-banner { padding: 20px; border-radius: 12px; display: flex; align-items: center; gap: 16px; font-weight: 600; }
+        .shortcut-banner.clean { background: #DCFCE7; color: var(--success); border: 1px solid var(--success); }
+        .shortcut-banner.flagged { background: #FEF3C7; color: #B45309; border: 1px solid #B45309; }
+
+        .recommendation-card { border-left: 4px solid var(--accent-primary); background: var(--bg-secondary); padding: 20px; border-radius: 0 12px 12px 0; margin-bottom: 16px; }
+        .accordion-row { cursor: pointer; transition: background 0.2s; }
+        .accordion-row:hover { background: rgba(124, 58, 237, 0.04) !important; }
+        .details-row td { background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+
+        /* Receipt Card Styles */
+        .receipt-card {
+            background: white;
+            border-radius: 24px;
+            padding: 48px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .success-checkmark-wrapper {
+            margin-bottom: 32px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            font-size: 2.5rem;
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar placeholder -->
+    </aside>
+
+    <div id="receipt-container" style="display: none; margin-left: 240px; padding: 60px 40px; min-height: calc(100vh - 80px); justify-content: center; align-items: center; transition: margin-left 0.3s;">
+        <div class="receipt-card">
+            <!-- Decorative dynamic background pulse -->
+            <div style="position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(16, 185, 129, 0.05); border-radius: 50%; filter: blur(40px);"></div>
+            <div style="position: absolute; bottom: -50px; left: -50px; width: 150px; height: 150px; background: rgba(124, 58, 237, 0.05); border-radius: 50%; filter: blur(40px);"></div>
+
+            <!-- Success Checkmark Animation -->
+            <div class="success-checkmark-wrapper">
+                ✅
+            </div>
+
+            <h1 style="font-size: 1.85rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px;">Assessment Submitted</h1>
+            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 32px;">Your official company evaluation is securely logged.</p>
+
+            <div class="receipt-details" style="background: var(--bg-secondary); border-radius: 16px; padding: 24px; text-align: left; border: 1px solid var(--border); margin-bottom: 32px; display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 12px;">
+                    <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;">Role</span>
+                    <strong id="receipt-role" style="color: var(--text-primary); font-size: 0.95rem; font-family: 'Plus Jakarta Sans', sans-serif;">--</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 12px;">
+                    <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;">Completed On</span>
+                    <strong id="receipt-date" style="color: var(--text-primary); font-size: 0.95rem; font-family: 'JetBrains Mono', monospace;">--</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 12px;">
+                    <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;">Attempt Status</span>
+                    <span style="background: rgba(16, 185, 129, 0.1); color: var(--success); font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Submitted</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;">Status</span>
+                    <span style="background: rgba(16, 185, 129, 0.15); color: var(--success); font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Under Review</span>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: center; gap: 16px;">
+                <button class="btn btn-primary" style="width: 100%;" onclick="window.location.href='dashboard.html'">Return to Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="layout">
+        <div class="main-col">
+            <header class="header-section">
+                <div>
+                    <h1 id="candidate-name" style="font-size: 1.75rem; margin-bottom: 8px;">Loading Report...</h1>
+                    <p id="interview-date" style="color: var(--text-secondary);">--</p>
+                    <div id="skills-tested" class="skills-grid" style="display: flex; gap: 8px; margin-top: 12px;"></div>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" onclick="window.print()">Download PDF</button>
+                    <button class="btn btn-primary" onclick="copyShareLink()">Share Link</button>
+                </div>
+            </header>
+
+            <div id="shortcut-box" class="shortcut-banner" style="display: none;"></div>
+
+            <div class="card" style="text-align: center; padding: 40px;">
+                <h3 style="margin-bottom: 24px; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em;">Overall Skill Depth Score</h3>
+                <div class="gauge-container">
+                    <svg viewBox="0 0 200 100">
+                        <path class="gauge-bg" d="M20,90 A80,80 0 0,1 180,90" />
+                        <path id="gauge-path" class="gauge-fill" d="M20,90 A80,80 0 0,1 180,90" />
+                    </svg>
+                    <div class="gauge-val" id="overall-score">--</div>
+                </div>
+                <p id="depth-message" style="margin-top: 24px; font-weight: 500;"></p>
+            </div>
+
+            <!-- Workforce Credibility Index & Consistency Analysis -->
+            <div class="card" id="wci-analysis-card" style="display: flex; flex-direction: column; gap: 24px; padding: 32px; border-left: 5px solid var(--accent-primary);">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
+                    <div style="text-align: left;">
+                        <h2 style="margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--text-primary);">Workforce Credibility Index (WCI)</h2>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">AI Integrity & Skill Consistency Analysis</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; display: block; margin-bottom: 4px;">CREDIBILITY RATING</span>
+                        <div id="wci-rating-badge" style="font-family: 'JetBrains Mono', monospace; font-size: 1.75rem; font-weight: 800; padding: 6px 16px; border-radius: 8px; display: inline-block;">--</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <!-- Math Breakdown -->
+                    <div style="background: var(--bg-secondary); padding: 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; text-align: left;">
+                        <h4 style="margin: 0 0 16px 0; font-size: 0.85rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em;">Scoring Breakdown</h4>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                                <span>Base Technical Competency:</span>
+                                <span class="mono" id="wci-base-score" style="font-weight: 600;">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #ef4444;" id="wci-inconsistency-row">
+                                <span>Knowledge Variance Penalty:</span>
+                                <span class="mono" id="wci-variance-penalty">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #ef4444;" id="wci-integrity-row">
+                                <span>Integrity/Shortcut Penalty:</span>
+                                <span class="mono" id="wci-shortcut-penalty">--</span>
+                            </div>
+                        </div>
+                        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-weight: 700; font-size: 1rem;">
+                            <span>Final Credibility Rating:</span>
+                            <span class="mono" id="wci-final-score" style="color: var(--accent-primary);">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Explanatory Diagnostic Feedback -->
+                    <div style="display: flex; flex-direction: column; justify-content: center; padding-left: 8px; text-align: left;">
+                        <h4 id="wci-status-title" style="margin: 0 0 8px 0; font-size: 1.15rem; font-weight: 700;">Analyzing Profile Consistency...</h4>
+                        <p id="wci-explanation-text" style="margin: 0; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;">
+                            Our system cross-references your spoken, conceptual insights against practical logic to analyze the balance of your developer profile.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Actionable Growth Strategy -->
+                <div id="wci-advice-box" style="padding: 20px; border-radius: 12px; font-size: 0.875rem; line-height: 1.6; border: 1px dashed rgba(124, 58, 237, 0.3); background: rgba(124, 58, 237, 0.05); display: flex; flex-direction: column; gap: 8px; text-align: left;">
+                    <strong style="color: var(--accent-primary); display: flex; align-items: center; gap: 6px;">
+                        💡 Personalized Credibility Action Plan
+                    </strong>
+                    <div id="wci-advice-text" style="color: var(--text-secondary);">
+                        Complete the assessment to receive tailored professional growth advice.
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="table-container">
+                <div style="padding: 20px; font-weight: 700;">Question Breakdown</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question</th>
+                            <th>Difficulty</th>
+                            <th>AI Score</th>
+                            <th>Shortcut</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="question-body"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-bottom: 24px;">AI Recommendations</h3>
+                <div id="recommendations-list"></div>
+            </div>
+        </div>
+
+        <div class="side-col">
+            <div class="card" style="margin-bottom: 32px;">
+                <h3 style="margin-bottom: 24px; font-size: 1rem;">Core Competencies</h3>
+                <div id="breakdown-bars"></div>
+            </div>
+
+            <div class="card" style="margin-bottom: 32px;">
+                <h3 style="margin-bottom: 24px; font-size: 1rem;">Module X: Expression Analysis</h3>
+                <div id="behavioral-signals"></div>
+                <div id="emotional-stability" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Emotional Stability</div>
+                    <div id="stability-label" style="font-weight: 700; font-size: 1.1rem; margin-top: 4px;">--</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-bottom: 24px; font-size: 1rem;">Module XV: Career Roadmap</h3>
+                <div id="roadmap-container" style="display: flex; flex-direction: column; gap: 16px;"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px;">
+        <div class="loading-spinner" style="width: 60px; height: 60px;"></div>
+        <p style="font-weight: 700; color: var(--accent-primary);">Generating Final Analysis...</p>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const reportId = urlParams.get('report_id');
+            const sessionId = urlParams.get('session_id');
+
+            try {
+                let reportData;
+                if (sessionId) {
+                    reportData = await apiRequest('/report/generate', 'POST', { session_id: sessionId });
+                } else if (reportId) {
+                    reportData = await apiRequest(`/report/${reportId}`);
+                } else {
+                    showError("No report or session specified.");
+                    return;
+                }
+                
+                // --- ROLE & SESSION TYPE CHECK ---
+                const user = JSON.parse(sessionStorage.getItem('wci_user') || '{}');
+                const isOfficial = reportData.session_type === 'official';
+                const isCandidate = user && user.role === 'candidate';
+
+                if (isOfficial && isCandidate) {
+                    renderOfficialReceipt(reportData);
+                } else {
+                    renderReport(reportData);
+                }
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+            }
+        });
+
+        function renderOfficialReceipt(data) {
+            // Hide full layout
+            const layout = document.querySelector('.layout');
+            if (layout) layout.style.display = 'none';
+
+            // Show receipt container
+            const receiptContainer = document.getElementById('receipt-container');
+            if (receiptContainer) {
+                receiptContainer.style.display = 'flex';
+                document.getElementById('receipt-role').textContent = data.job_role || 'Backend Developer';
+                document.getElementById('receipt-date').textContent = data.date || '--';
+            }
+        }
+
+        function renderReport(data) {
+            // Normalise recommendations to always be a usable array
+            if (!Array.isArray(data.recommendations)) {
+                if (data.recommendations && typeof data.recommendations === 'object') {
+                    // Maybe it's wrapped e.g. { items: [...] }
+                    const vals = Object.values(data.recommendations);
+                    data.recommendations = Array.isArray(vals[0]) ? vals[0] : [];
+                } else {
+                    data.recommendations = [];
+                }
+            }
+            document.getElementById('candidate-name').textContent = data.name;
+            document.getElementById('interview-date').textContent = data.date;
+            document.getElementById('overall-score').textContent = data.overall_score;
+            
+            // Gauge Animation
+            const gaugePath = document.getElementById('gauge-path');
+            const score = data.overall_score;
+            const offset = 283 - (score / 100) * 283;
+            gaugePath.style.strokeDashoffset = offset;
+            
+            if (score > 70) gaugePath.style.stroke = 'var(--success)';
+            else if (score > 50) gaugePath.style.stroke = 'var(--warning)';
+            else gaugePath.style.stroke = 'var(--danger)';
+
+            // Skills
+            const skillContainer = document.getElementById('skills-tested');
+            data.skills_tested.forEach(s => {
+                skillContainer.innerHTML += `<span class="tag">${s}</span>`;
+            });
+
+            // Shortcut
+            const shortcutBox = document.getElementById('shortcut-box');
+            shortcutBox.style.display = 'flex';
+            if (data.shortcut_flags.length === 0) {
+                shortcutBox.className = 'shortcut-banner clean';
+                shortcutBox.innerHTML = '<span>✓</span> No shortcut patterns detected';
+            } else {
+                shortcutBox.className = 'shortcut-banner flagged';
+                shortcutBox.innerHTML = `<span>⚠</span> Possible shortcut detected: ${data.shortcut_flags.join(', ')}`;
+            }
+
+            // --- WCI Dynamic Explanation & Educational Feedback ---
+            const baseScore = data.overall_score;
+            const credibilityScore = data.credibility_score;
+            const shortcutCount = data.shortcut_flags.length;
+            const shortcutPenalty = shortcutCount * 15;
+            
+            let variancePenalty = baseScore - shortcutPenalty - credibilityScore;
+            if (variancePenalty < 0) variancePenalty = 0;
+            variancePenalty = Math.round(variancePenalty * 10) / 10;
+
+            document.getElementById('wci-base-score').textContent = `${baseScore}%`;
+            document.getElementById('wci-variance-penalty').textContent = variancePenalty > 0 ? `-${variancePenalty}%` : '0%';
+            document.getElementById('wci-shortcut-penalty').textContent = shortcutPenalty > 0 ? `-${shortcutPenalty}%` : '0%';
+            document.getElementById('wci-final-score').textContent = `${credibilityScore}%`;
+            document.getElementById('wci-rating-badge').textContent = `${credibilityScore}%`;
+            
+            const badge = document.getElementById('wci-rating-badge');
+            const statusTitle = document.getElementById('wci-status-title');
+            const explanationText = document.getElementById('wci-explanation-text');
+            const adviceText = document.getElementById('wci-advice-text');
+            
+            if (credibilityScore >= 75) {
+                badge.style.backgroundColor = 'rgba(34, 197, 94, 0.15)';
+                badge.style.color = '#22c55e';
+                badge.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+            } else if (credibilityScore >= 50) {
+                badge.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
+                badge.style.color = '#f59e0b';
+                badge.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+            } else {
+                badge.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+                badge.style.color = '#ef4444';
+                badge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+            }
+
+            const conceptScore = data.score_breakdown.conceptual || 0;
+            const practicalScore = data.score_breakdown.practical || 0;
+            const skillGap = Math.abs(conceptScore - practicalScore);
+
+            if (shortcutCount > 0) {
+                statusTitle.textContent = "Integrity Flags & Behavioral Alerts Triggered";
+                statusTitle.style.color = '#ef4444';
+                explanationText.innerHTML = `Your Workforce Credibility Index was penalized by <strong>-${shortcutPenalty}%</strong> due to template-matching or pre-written answering patterns detected during the assessment. In modern technical hiring, authenticity and personal articulation are prioritized over rote memorization.`;
+                adviceText.innerHTML = `<strong>Action Plan:</strong> Focus on explaining system dynamics in your own unique engineering voice. Avoid using AI templates or memorized documentation definitions when responding to conversational scenarios. Real-world engineering requires articulating technical decisions individually.`;
+            } else if (skillGap > 15) {
+                statusTitle.textContent = "High Skill-Consistency Gap Detected";
+                statusTitle.style.color = '#f59e0b';
+                
+                if (conceptScore > practicalScore) {
+                    explanationText.innerHTML = `Your profile shows a <strong>Theory-Heavy Inconsistency</strong>. While your high-level conceptual answers were strong (<strong>${conceptScore}%</strong>), your hands-on code execution scores are lagging behind (<strong>${practicalScore}%</strong>). This indicates strong theoretical learning but limited active coding application.`;
+                    adviceText.innerHTML = `<strong>Action Plan:</strong> Bridge this conceptual gap with hands-on practice. Stop memorizing system design terms and start building! Take every high-level topic tested (e.g. databases, algorithms) and implement their core functionality (e.g. write a database connector or custom sorting algorithms) entirely from scratch.`;
+                } else {
+                    explanationText.innerHTML = `Your profile shows a <strong>Practical-Heavy Inconsistency</strong>. Your interactive debugging scores were robust (<strong>${practicalScore}%</strong>), but you struggled to articulate the deep architectural concepts verbally (<strong>${conceptScore}%</strong>). This is typical of self-taught developers who write code but haven't studied basic computer science concepts.`;
+                    adviceText.innerHTML = `<strong>Action Plan:</strong> Level up your technical articulation. Practice explaining your code out loud using formal technical terms (e.g., Big O notation, data structures, concurrency paradigms). Try writing technical blogs or conducting mock interviews to build communication confidence.`;
+                }
+            } else {
+                statusTitle.textContent = "Highly Consistent & Balanced Profile";
+                statusTitle.style.color = '#22c55e';
+                explanationText.innerHTML = `Excellent work! Your verbal/conceptual scores (<strong>${conceptScore}%</strong>) are perfectly balanced with your hands-on debugging implementation (<strong>${practicalScore}%</strong>). Recruiters value balanced engineers because they can both communicate architecture clearly and deploy reliable code.`;
+                adviceText.innerHTML = `<strong>Action Plan:</strong> Your credibility profile is highly attractive. Keep sharpening your skills by tackling complex system designs or learning advanced programming paradigms (e.g., reactive programming, low-latency architectures) to maintain this solid baseline.`;
+            }
+
+            // Questions
+            const qBody = document.getElementById('question-body');
+            qBody.innerHTML = '';
+            data.question_results.forEach((q, idx) => {
+                const color = q.score > 70 ? 'var(--success)' : q.score > 40 ? 'var(--warning)' : 'var(--danger)';
+                const qText = q.text || "Technical Interview Question";
+                const qDiff = q.difficulty || "medium";
+                
+                let correctnessBadge = "";
+                if (q.score >= 70) correctnessBadge = "✅ Correct";
+                else if (q.score >= 40) correctnessBadge = "⚠️ Partially Correct";
+                else correctnessBadge = "❌ Incorrect";
+
+                let keywordsHTML = "";
+                if (q.expected_keywords && q.expected_keywords.length > 0) {
+                    const foundKeys = q.keywords_found || [];
+                    keywordsHTML = `
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">Keyword Checklist:</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                ${q.expected_keywords.map(kw => {
+                                    const isFound = foundKeys.some(f => f.toLowerCase() === kw.toLowerCase());
+                                    const bg = isFound ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+                                    const fg = isFound ? '#22c55e' : '#ef4444';
+                                    const icon = isFound ? '✓' : '✗';
+                                    return `<span style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; background: ${bg}; color: ${fg}; font-weight: 600;">${icon} ${kw}</span>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                qBody.innerHTML += `
+                    <tr class="accordion-row" id="accordion-row-${idx}" onclick="toggleAccordion(${idx})">
+                        <td>${idx + 1}</td>
+                        <td style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span id="accordion-arrow-${idx}" style="display: inline-block; transition: transform 0.2s; font-size: 0.7rem; color: var(--text-secondary);">▶</span>
+                            ${qText}
+                        </td>
+                        <td><span class="badge badge-${qDiff}">${qDiff}</span></td>
+                        <td class="mono" style="font-weight: 700; color: ${color}">${q.score}%</td>
+                        <td>${q.flagged || q.shortcut_flag ? '🚩' : '—'}</td>
+                        <td class="mono">${q.time_taken || 0}s</td>
+                    </tr>
+                    <tr id="accordion-details-${idx}" class="details-row" style="display: none;">
+                        <td colspan="6" style="padding: 24px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; text-align: left;">
+                                <!-- Left Side: Answer and Correctness -->
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                        <strong style="font-size: 0.9rem;">Your Answer:</strong>
+                                        <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 8px; border-radius: 4px; border: 1px solid ${color}; background: ${color}15; color: ${color};">
+                                            ${correctnessBadge}
+                                        </span>
+                                    </div>
+                                    <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; max-height: 200px; overflow-y: auto; white-space: pre-wrap;">
+                                        ${q.answer_text ? q.answer_text : '<i>No answer recorded or voice transcription blank.</i>'}
+                                    </div>
+                                </div>
+                                
+                                <!-- Right Side: Feedback and Actions -->
+                                <div>
+                                    <strong style="display: block; font-size: 0.9rem; margin-bottom: 12px;">Personalized Feedback & Improvements:</strong>
+                                    <p style="margin: 0 0 16px 0; font-size: 0.875rem; line-height: 1.6; color: var(--text-secondary);">
+                                        ${q.feedback || 'No feedback generated.'}
+                                    </p>
+                                    
+                                    ${keywordsHTML}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            // Breakdown (Module VII, XII)
+            const breakdown = document.getElementById('breakdown-bars');
+            breakdown.innerHTML = '';
+            const labels = {
+                conceptual: 'Conceptual Depth',
+                practical: 'Practical Relevance',
+                communication: 'Module XII: Clarity',
+                problem_solving: 'Module VII: Problem Solving',
+                behavioral: 'Confidence Index'
+            };
+
+            Object.entries(data.score_breakdown).forEach(([type, val]) => {
+                if (!labels[type]) return;
+                breakdown.innerHTML += `
+                    <div style="margin-bottom: 24px;">
+                        <div class="metric-row"><span>${labels[type]}</span><span class="mono">${val}%</span></div>
+                        <div class="metric-bar"><div class="metric-fill" style="width: ${val}%; background: ${val > 70 ? 'var(--success)' : 'var(--accent-primary)'}"></div></div>
+                    </div>
+                `;
+            });
+
+            // Behavioral Signals (Module X)
+            const signals = document.getElementById('behavioral-signals');
+            signals.innerHTML = '';
+            const signalList = [
+                { label: 'Eye Contact/Focus', val: data.behavioral_signals.eye_contact },
+                { label: 'Speech Stability', val: data.behavioral_signals.confidence },
+                { label: 'Explanation Quality', val: data.behavioral_signals.clarity }
+            ];
+            signalList.forEach(s => {
+                signals.innerHTML += `
+                    <div style="margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;"><span>${s.label}</span><span>${s.val}%</span></div>
+                        <div style="height: 6px; background: var(--bg-secondary); border-radius: 3px;"><div style="height: 100%; width: ${s.val}%; background: var(--accent-primary); border-radius: 3px;"></div></div>
+                    </div>
+                `;
+            });
+            document.getElementById('stability-label').textContent = data.overall_score > 60 ? "Emotionally Resilient" : "Hesitant / High Stress";
+            document.getElementById('stability-label').style.color = data.overall_score > 60 ? "var(--success)" : "var(--warning)";
+
+            // Roadmap (Module XV)
+            const roadmap = document.getElementById('roadmap-container');
+            const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+            if (recs.length === 0) {
+                roadmap.innerHTML = '<p style="font-size:0.8rem;color:var(--text-secondary);">No recommendations available for this session.</p>';
+            } else {
+                roadmap.innerHTML = recs.map((rec, idx) => `
+                    <div style="display: flex; gap: 12px; align-items: flex-start;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--accent-light); color: var(--accent-primary); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; flex-shrink: 0;">${idx+1}</div>
+                        <div>
+                            <div style="font-size: 0.875rem; font-weight: 700;">${rec.area || 'General'}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${rec.suggestion ? rec.suggestion.split('.')[0] : ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // AI Recommendations list
+            const recList = document.getElementById('recommendations-list');
+            if (recList) {
+                if (recs.length === 0) {
+                    recList.innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem;">No AI recommendations generated for this session.</p>';
+                } else {
+                    recList.innerHTML = recs.map(r => `
+                        <div class="recommendation-card">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                                <strong>${r.area || 'General'}</strong>
+                                <span class="badge badge-${r.priority === 'high' ? 'hard' : r.priority === 'medium' ? 'medium' : 'easy'}">${r.priority || 'medium'}</span>
+                            </div>
+                            <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:8px;">${r.problem || ''}</p>
+                            <p style="font-size:0.875rem;">${r.suggestion || ''}</p>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        function copyShareLink() {
+            navigator.clipboard.writeText(window.location.href);
+            alert("Report link copied to clipboard!");
+        }
+
+        function showError(msg) {
+            document.body.innerHTML = `
+                <div class="empty-state" style="height: 100vh;">
+                    <span class="empty-illustration">❌</span>
+                    <h2>Report Error</h2>
+                    <p>${msg}</p>
+                    <button class="btn btn-primary" onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+                </div>
+            `;
+        }
+
+        function toggleAccordion(idx) {
+            const detailsRow = document.getElementById(`accordion-details-${idx}`);
+            const mainRow = document.getElementById(`accordion-row-${idx}`);
+            const arrow = document.getElementById(`accordion-arrow-${idx}`);
+            if (detailsRow.style.display === 'none') {
+                detailsRow.style.display = 'table-row';
+                mainRow.style.backgroundColor = 'rgba(124, 58, 237, 0.08)';
+                if (arrow) arrow.style.transform = 'rotate(90deg)';
+            } else {
+                detailsRow.style.display = 'none';
+                mainRow.style.backgroundColor = '';
+                if (arrow) arrow.style.transform = 'rotate(0deg)';
+            }
+        }
+    </script>
+</body>
+</html>
+

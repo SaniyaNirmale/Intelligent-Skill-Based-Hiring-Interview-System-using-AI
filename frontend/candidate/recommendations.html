@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recommendations | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        .layout { margin-left: 240px; padding: 40px; display: grid; grid-template-columns: 1fr 350px; gap: 32px; }
+        .main-col { display: flex; flex-direction: column; gap: 24px; }
+        .recommendation-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        .rec-card { display: flex; gap: 20px; align-items: flex-start; }
+        .rec-icon { width: 48px; height: 48px; background: var(--accent-light); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+        
+        .milestone-list { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
+        .milestone-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; border: 1px solid var(--border); transition: var(--transition); }
+        .milestone-item:hover { border-color: var(--accent-primary); }
+        .milestone-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+        .milestone-check.completed { background: var(--success); border-color: var(--success); color: white; }
+        .milestone-check.progress { border-color: var(--warning); color: var(--warning); }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar placeholder -->
+    </aside>
+
+    <main class="layout">
+        <div class="main-col">
+            <header>
+                <h1 style="font-size: 1.5rem; margin-bottom: 4px;">Personalized Recommendations</h1>
+                <p style="color: var(--text-secondary); font-size: 0.875rem;">AI-curated resources and next steps based on your interview performance.</p>
+            </header>
+
+            <div id="recommendations-container" class="recommendation-grid">
+                <div class="loading-spinner" style="margin: 40px auto;"></div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="card">
+                <h3 style="font-size: 1rem; margin-bottom: 8px;">Learning Path Progress</h3>
+                <div id="progress-donut" style="height: 150px; display: flex; align-items: center; justify-content: center; margin: 20px 0;">
+                    <div class="stat-value" id="path-percent">--%</div>
+                </div>
+                
+                <div class="milestone-list" id="milestones-container"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            try {
+                const [recs, path] = await Promise.all([
+                    apiRequest(`/candidate/recommendations/${user.user_id}`),
+                    apiRequest(`/candidate/learning-path/${user.user_id}`)
+                ]);
+
+                renderRecommendations(recs);
+                renderLearningPath(path);
+            } catch (err) {
+                console.error(err);
+                showEmptyState();
+            }
+        });
+
+        function renderRecommendations(recs) {
+            const container = document.getElementById('recommendations-container');
+            if (recs.length === 0) {
+                container.innerHTML = `<div class="empty-state"><h3>No recommendations yet</h3><p>Complete an interview to get suggestions.</p></div>`;
+                return;
+            }
+
+            container.innerHTML = recs.map(r => {
+                const icons = { video: '📹', article: '📄', practice: '💻' };
+                const priority = r.priority === 'high' ? 'badge-hard' : r.priority === 'medium' ? 'badge-medium' : 'badge-easy';
+                
+                return `
+                    <div class="card rec-card">
+                        <div class="rec-icon">${icons[r.type] || '📚'}</div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                <h4 style="font-size: 1rem;">${r.area}</h4>
+                                <span class="badge ${priority}">${r.priority} Priority</span>
+                            </div>
+                            <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 12px;"><strong>Gap identified:</strong> ${r.problem}</p>
+                            <p style="font-size: 0.875rem; margin-bottom: 20px;">${r.suggestion}</p>
+                            <button class="btn btn-secondary" style="padding: 8px 16px;" 
+                                onclick="window.open('${r.resource_url ? r.resource_url : 'https://www.google.com/search?q=' + encodeURIComponent(r.area + ' tutorial')}', '_blank')">
+                                ${r.resource_url ? 'Start Learning' : 'Search: ' + r.area}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderLearningPath(path) {
+            const container = document.getElementById('milestones-container');
+            document.getElementById('path-percent').textContent = `${path.progress}%`;
+            
+            container.innerHTML = path.milestones.map(m => {
+                let checkClass = '';
+                let checkIcon = '';
+                if (m.status === 'completed') { checkClass = 'completed'; checkIcon = '✓'; }
+                else if (m.status === 'progress') { checkClass = 'progress'; checkIcon = '◑'; }
+                else { checkIcon = '○'; }
+
+                return `
+                    <div class="milestone-item">
+                        <div class="milestone-check ${checkClass}">${checkIcon}</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.875rem; font-weight: 600;">${m.skill}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${m.score ? m.score + '% proficiency' : 'Not tested yet'}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showEmptyState() {
+            document.getElementById('recommendations-container').innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-illustration">🎓</span>
+                    <h3>Complete an interview to get started.</h3>
+                    <button class="btn btn-primary" onclick="window.location.href='interview.html'">Start Interview</button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
+

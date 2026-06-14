@@ -1,0 +1,83 @@
+# Environment configuration file (contains sensitive API keys)
+.env
+
+# Ignore README.md
+README.md
+
+# Python compilation and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# Local database files (candidate/recruiter user info and logs)
+backend/data/candidates.json
+backend/data/recruiters.json
+backend/data/sessions.json
+backend/data/reports.json
+backend/data/practice_sessions.json
+backend/data/official_sessions.json
+backend/data/coding_reports.json
+
+# Candidate webcam snapshots
+backend/data/snapshots/
+
+# Local logs and test outputs
+test_output.txt
+*.log
+
+# IDE and Editor configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local development helper/testing scripts
+abandon.py
+check_dash.py
+check_reports.py
+clean_sessions.py
+fix_reports.py
+test_edges.py
+test_graph.py
+test_skill_extractor.py
+
+# Project architecture details documentation
+project_architecture_details.html
+project_architecture_details.md
+project_architecture_details.txt

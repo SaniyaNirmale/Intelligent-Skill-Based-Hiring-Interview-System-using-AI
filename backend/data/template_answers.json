@@ -1,0 +1,26 @@
+{
+    "Python": [
+        "A list is a mutable sequence of objects while a tuple is an immutable sequence."
+    ],
+    "Data Structures": [
+        "Hash maps use a hash function to compute an index into an array of buckets."
+    ],
+    "Operating Systems": [
+        "Deadlock is a situation where two or more processes are waiting for each other to release resources."
+    ],
+    "Machine Learning": [
+        "Supervised learning uses labeled data while unsupervised learning finds patterns in unlabeled data."
+    ],
+    "System Design": [
+        "The CAP theorem states that a distributed system can only provide two out of three guarantees."
+    ],
+    "OOP": [
+        "Inheritance allows a class to inherit properties and methods from another class.",
+        "Polymorphism is the ability of an object to take on many forms.",
+        "Encapsulation is the bundling of data and methods that operate on that data.",
+        "Abstraction is the process of hiding internal details and showing only functionality."
+    ],
+    "Databases": [
+        "A primary key uniquely identifies a record while a foreign key links tables together."
+    ]
+}

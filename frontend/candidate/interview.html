@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Interview | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        .interview-layout { display: flex; margin-left: 240px; height: 100vh; overflow: hidden; }
+        .left-panel { flex: 40; background: #0b0f1a; display: flex; flex-direction: column; padding: 24px; color: white; border-right: 1px solid #1e293b; }
+        .right-panel { flex: 60; background: white; padding: 60px; display: flex; flex-direction: column; position: relative; overflow-y: auto; }
+        
+        .camera-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #1E293B;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(124, 58, 237, 0.2);
+            margin-bottom: 20px;
+        }
+        
+        .avatar-container {
+            flex: 1;
+            width: 100%;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0b0f1a 100%);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(124, 58, 237, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #video-feed { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .camera-overlay {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(0,0,0,0.6);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .live-dot { width: 6px; height: 6px; background: var(--danger); border-radius: 50%; animation: blink 1s infinite; }
+        
+        /* Agent Label */
+        .agent-label {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(124, 58, 237, 0.2);
+            backdrop-filter: blur(4px);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #a78bfa;
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            z-index: 10;
+        }
+        .live-dot { width: 8px; height: 8px; background: var(--danger); border-radius: 50%; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+        .waveform { display: flex; gap: 4px; height: 40px; align-items: center; margin-bottom: 40px; }
+        .wave-bar { width: 4px; height: 10px; background: var(--accent-primary); border-radius: 10px; transition: height 0.1s; }
+        .wave-bar.active { animation: wave 1s infinite ease-in-out; }
+        @keyframes wave { 0%, 100% { height: 10px; } 50% { height: 40px; } }
+
+        /* Timer Removed */
+        .timer-circle { display: none; }
+
+        .question-box { margin-top: 40px; min-height: 200px; }
+        .answer-area { margin-top: 40px; display: flex; flex-direction: column; gap: 16px; }
+        textarea { width: 100%; height: 150px; padding: 20px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 1rem; resize: none; }
+        
+        .history-card { padding: 16px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 12px; background: var(--bg-secondary); }
+        
+        .control-btn { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: var(--transition); background: rgba(255,255,255,0.1); color: white; font-size: 1.25rem; }
+        .control-btn.active { background: var(--danger); }
+        .controls-row { display: flex; gap: 20px; margin-top: auto; }
+
+        #transcript-live { font-style: italic; color: var(--accent-primary); margin-top: 12px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar placeholder -->
+    </aside>
+
+    <main class="interview-layout">
+        <div class="left-panel">
+            <div class="camera-container">
+                <video id="video-feed" autoplay playsinline muted></video>
+                <div class="camera-overlay">
+                    <div class="live-dot"></div>
+                    <span>PROCTORING ACTIVE</span>
+                </div>
+            </div>
+
+            <div class="avatar-container" id="avatar-canvas-container">
+                <div class="agent-label">AI AGENT: AURA</div>
+                <!-- Three.js Canvas will be injected here -->
+            </div>
+            
+            <div id="ai-feedback" style="text-align: center; color: #a78bfa; font-size: 0.85rem; margin: 15px 0; font-family: monospace;">
+                [AURA: LISTENING]
+            </div>
+
+            <!-- Proctoring Alert Overlay -->
+            <div id="proctoring-alert" style="display: none; position: absolute; top: 40px; left: 50%; transform: translateX(-50%); background: var(--danger); color: white; padding: 16px 24px; border-radius: 12px; font-weight: 700; z-index: 5000; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); animation: shake 0.5s;">
+                ⚠️ ALERT: Face not detected!
+            </div>
+
+            <div class="controls-row" style="margin-top: auto;">
+                <button class="control-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
+                <button class="control-btn" id="cam-btn" onclick="toggleCam()">📷</button>
+                <button class="control-btn active" onclick="endInterview()" style="background: var(--danger);">📞</button>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="progress-bar" style="position: absolute; top: 0; left: 0; border-radius: 0; height: 6px;">
+                <div class="progress-fill" id="interview-progress" style="width: 0%;"></div>
+            </div>
+
+            <div class="timer-circle" id="timer">120</div>
+
+            <div class="question-box">
+                <span id="difficulty-badge" class="badge">--</span>
+                <p id="question-index" style="color: var(--text-secondary); margin-top: 12px; font-weight: 600; font-size: 0.875rem;">Question -- of --</p>
+                <h2 id="question-text" style="margin-top: 16px; line-height: 1.4; font-size: 1.5rem;">Connecting to interviewer...</h2>
+            </div>
+
+            <div class="answer-area">
+                <div style="display: flex; gap: 12px; margin-bottom: 8px;">
+                    <button class="tag active" id="mode-voice" onclick="setMode('voice')">🎤 Voice Mode</button>
+                    <button class="tag" id="mode-type" onclick="setMode('type')">⌨️ Type Mode</button>
+                </div>
+
+                <div id="type-input-area" style="display: none;">
+                    <textarea id="answer-text" placeholder="Type your answer here..."></textarea>
+                    <div style="text-align: right; font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+                        Character count: <span id="char-count">0</span>
+                    </div>
+                </div>
+
+                <div id="voice-input-area">
+                    <div style="padding: 40px; border: 2px dashed var(--accent-light); border-radius: 12px; text-align: center;">
+                        <p id="voice-status">Speak naturally. We are transcribing...</p>
+                        <div id="transcript-live"></div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="padding: 16px; font-size: 1.1rem;" onclick="submitAnswer()" id="submit-btn">Submit Answer</button>
+            </div>
+
+            <div style="margin-top: 60px;">
+                <h3 style="font-size: 1rem; margin-bottom: 20px; color: var(--text-secondary);">History</h3>
+                <div id="history-list"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Overlay for Start/Continue -->
+    <div id="start-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; align-items: center; justify-content: center;">
+        <div class="card" style="max-width: 400px; text-align: center;">
+            <h2 style="margin-bottom: 12px;">Resume Interview?</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 24px;">You have an interview session in progress. Would you like to continue or start a fresh one?</p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button class="btn btn-primary" onclick="startInterview(true)">Continue Session</button>
+                <button class="btn btn-secondary" onclick="startInterview(false)">Start New Interview</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Canvas for Snapshots -->
+    <canvas id="snapshot-canvas" style="display: none;" width="320" height="180"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script src="../js/proctoringEngine.js"></script>
+    <script>
+        let currentSessionId = null;
+        let timerInterval = null;
+        let timeLeft = 120;
+        let isRecording = false;
+        let recognition = null;
+        let currentMode = 'voice';
+        let candidateWs = null;
+        let proctoringInterval = null;
+        let hasPasted = false;
+        let finalTranscript = '';
+
+        // --- REAL-TIME BEHAVIORAL SIGNAL STATE ---
+        let eyeContactScore = 95;
+        let voiceConfidenceScore = 85;
+        let responseTimeScore = 90;
+        let questionLoadedAt = 0;
+        let candidateStartedAnsweringAt = 0;
+        let actualResponseTimeSeconds = 0;
+        let audioContext = null;
+        let audioAnalyser = null;
+
+        // Consolidating everything into the window.load listener below
+
+        async function startInterview(continueSession) {
+            document.getElementById('start-overlay').style.display = 'none';
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            
+            try {
+                const endpoint = continueSession ? '/interview/resume' : '/interview/start';
+                const body = continueSession ? { session_id: sessionStorage.getItem('wci_session') } : { candidate_id: user.user_id, skills: JSON.parse(sessionStorage.getItem('extracted_skills')) };
+                
+                const data = await apiRequest(endpoint, 'POST', body);
+                currentSessionId = data.session_id;
+                sessionStorage.setItem('wci_session', data.session_id);
+                
+                initProctoring(data.session_id);
+                
+                // If resuming, clear history list and populate with previous answers!
+                if (continueSession && data.answers && data.answers.length > 0) {
+                    const list = document.getElementById('history-list');
+                    if (list) {
+                        list.innerHTML = '';
+                        // Loop chronologically to let addToHistory prepend them in reverse chronological order
+                        data.answers.forEach(ans => {
+                            addToHistory(ans.answer_text, ans.feedback);
+                        });
+                    }
+                }
+                
+                loadQuestion(data);
+            } catch (err) {
+                alert("Failed to start interview: " + err.message);
+                window.location.href = 'dashboard.html';
+            }
+        }
+
+        function loadQuestion(data) {
+            hasPasted = false;
+            document.getElementById('char-count').textContent = '0';
+            document.getElementById('question-text').textContent = data.question.text;
+            document.getElementById('difficulty-badge').textContent = data.question.difficulty.toUpperCase();
+            document.getElementById('difficulty-badge').className = `badge badge-${data.question.difficulty}`;
+            document.getElementById('question-index').textContent = `Question ${data.current_index} of ${data.total_questions}`;
+            document.getElementById('interview-progress').style.width = `${(data.current_index / data.total_questions) * 100}%`;
+            
+            resetTimer();
+            if (currentMode === 'voice') startRecording();
+            
+            // Track response times dynamically
+            questionLoadedAt = Date.now();
+            candidateStartedAnsweringAt = 0;
+            actualResponseTimeSeconds = 0;
+            responseTimeScore = 95; // Start high, decays if answering takes long
+            
+            setTimeout(() => sendLiveUpdate(), 1000); // Sync recruiter monitor
+        }
+
+        function formatElapsedTime() {
+            const sec = Math.floor((Date.now() - interviewStartedAt) / 1000);
+            const m = Math.floor(sec / 60).toString().padStart(2, '0');
+            const s = (sec % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function calculateCurrentScore() {
+            return 85; 
+        }
+
+        function sendLiveUpdate(alertMsg = null) {
+            if (typeof ProctoringEngine !== 'undefined') {
+                ProctoringEngine.setVoiceConfidence(voiceConfidenceScore);
+                ProctoringEngine.setResponseTime(responseTimeScore);
+            }
+        }
+
+        function resetTimer() {
+            // Timer logic removed as per user request
+            const timerEl = document.getElementById('timer');
+            if(timerEl) timerEl.style.display = 'none';
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode-voice').classList.toggle('active', mode === 'voice');
+            document.getElementById('mode-type').classList.toggle('active', mode === 'type');
+            document.getElementById('voice-input-area').style.display = mode === 'voice' ? 'block' : 'none';
+            document.getElementById('type-input-area').style.display = mode === 'type' ? 'block' : 'none';
+            
+            if (mode === 'voice') startRecording();
+            else stopRecording();
+        }
+
+        function initSpeech() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.log("Speech recognition not supported");
+                setMode('type');
+                return;
+            }
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                
+                const currentText = finalTranscript + interimTranscript;
+                document.getElementById('transcript-live').textContent = currentText;
+                document.getElementById('answer-text').value = currentText;
+                
+                // Track start of candidate answering for voice mode
+                if (candidateStartedAnsweringAt === 0 && currentText.trim().length > 0) {
+                    candidateStartedAnsweringAt = Date.now();
+                    actualResponseTimeSeconds = (candidateStartedAnsweringAt - questionLoadedAt) / 1000;
+                    if (typeof calculateResponseTimeScore === 'function') {
+                        calculateResponseTimeScore();
+                    }
+                }
+            };
+            
+            // Auto-restart if the browser speech engine stops silently
+            recognition.onend = () => {
+                if (currentMode === 'voice' && isRecording) {
+                    try { recognition.start(); } catch(e) {}
+                }
+            };
+
+            // Jump-start immediately if default is voice
+            if (currentMode === 'voice') {
+                startRecording();
+            }
+        }
+
+        function startRecording() {
+            if (recognition && !isRecording) {
+                try {
+                    recognition.start();
+                    isRecording = true;
+                } catch(e) {
+                    console.log("Recognition already started or failed", e);
+                }
+            }
+        }
+
+        function stopRecording() {
+            if (recognition && isRecording) {
+                isRecording = false; // Set false BEFORE stop so onend doesn't restart it
+                recognition.stop();
+            }
+        }
+
+        async function submitAnswer() {
+            const btn = document.getElementById('submit-btn');
+            const answer = document.getElementById('answer-text').value;
+            
+            stopRecording();
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading-spinner"></div>';
+
+            try {
+                const data = await apiRequest('/interview/answer', 'POST', {
+                    session_id: currentSessionId,
+                    answer_text: answer,
+                    time_taken: 120 - timeLeft,
+                    is_pasted: hasPasted
+                });
+
+                // Show AI Feedback
+                document.getElementById('ai-feedback').textContent = data.feedback;
+                
+                // Add to history
+                addToHistory(answer, data.feedback);
+
+                if (data.question) {
+                    loadQuestion(data);
+                } else {
+                    window.location.href = `report.html?session_id=${currentSessionId}`;
+                }
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Submit Answer';
+                document.getElementById('answer-text').value = '';
+                document.getElementById('transcript-live').textContent = '';
+                finalTranscript = '';
+            }
+        }
+
+        function addToHistory(ans, feedback) {
+            const list = document.getElementById('history-list');
+            const card = document.createElement('div');
+            card.className = 'history-card';
+            card.innerHTML = `
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px;">Your Answer:</div>
+                <div style="margin-bottom: 12px;">${ans || 'No answer provided'}</div>
+                <div style="font-size: 0.8rem; color: var(--accent-primary);">AI Feedback:</div>
+                <div style="font-size: 0.875rem;">${feedback}</div>
+            `;
+            list.prepend(card);
+        }
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('video-feed').srcObject = stream;
+                document.getElementById('cam-btn').classList.add('active');
+                initAudioConfidence(stream);
+            } catch (err) {
+                console.error("Camera/Mic access denied:", err);
+                document.getElementById('ai-feedback').textContent = "Please allow camera/mic access for verification.";
+            }
+        }
+
+        function initAudioConfidence(stream) {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                audioContext = new AudioContext();
+                audioAnalyser = audioContext.createAnalyser();
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(audioAnalyser);
+                audioAnalyser.fftSize = 128;
+                const bufferLength = audioAnalyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                
+                setInterval(() => {
+                    if (isRecording) {
+                        audioAnalyser.getByteFrequencyData(dataArray);
+                        let sum = 0;
+                        for (let i = 0; i < bufferLength; i++) {
+                            sum += dataArray[i];
+                        }
+                        let average = sum / bufferLength;
+                        
+                        // Volume-based dynamic confidence scoring
+                        if (average > 8) {
+                            // Candidate is actively speaking! Fluctuate score based on speech energy
+                            const raw = 78 + Math.min(18, average * 0.45);
+                            voiceConfidenceScore = THREE.MathUtils.lerp(voiceConfidenceScore, raw, 0.25);
+                        } else {
+                            // Silence / pausing: decay slowly to baseline
+                            voiceConfidenceScore = THREE.MathUtils.lerp(voiceConfidenceScore, 85, 0.05);
+                        }
+                    } else {
+                        // Silent when not speaking/recording
+                        voiceConfidenceScore = THREE.MathUtils.lerp(voiceConfidenceScore, 85, 0.1);
+                    }
+                }, 400);
+            } catch (e) {
+                console.log("Audio confidence tracker initialization error:", e);
+            }
+        }
+
+        function calculateResponseTimeScore() {
+            if (actualResponseTimeSeconds > 0) {
+                if (actualResponseTimeSeconds < 8) responseTimeScore = 98;
+                else if (actualResponseTimeSeconds < 15) responseTimeScore = 92;
+                else if (actualResponseTimeSeconds < 30) responseTimeScore = 80;
+                else if (actualResponseTimeSeconds < 45) responseTimeScore = 65;
+                else responseTimeScore = Math.max(25, 65 - Math.floor((actualResponseTimeSeconds - 45) / 1.5));
+            }
+            sendLiveUpdate();
+        }
+
+        function initProctoring(sessionId) {
+            if (typeof ProctoringEngine !== 'undefined') {
+                ProctoringEngine.start(sessionId, 'video-feed', 'snapshot-canvas', 'interview');
+                
+                // Keep candidate signals updated from backend metrics
+                setInterval(() => {
+                    ProctoringEngine.setVoiceConfidence(voiceConfidenceScore);
+                    ProctoringEngine.setResponseTime(responseTimeScore);
+                    
+                    const pScores = ProctoringEngine.getScores();
+                    eyeContactScore = pScores.eyeContact;
+                }, 1000);
+            }
+        }
+
+        function showProctoringAlert(msg) {
+            const alertEl = document.getElementById('proctoring-alert');
+            alertEl.textContent = `⚠️ ALERT: ${msg}`;
+            alertEl.style.display = 'block';
+            
+            // USE THE UNIFIED VOICE BOX
+            speakText(msg, true);
+            
+            setTimeout(() => { alertEl.style.display = 'none'; }, 5000);
+        }
+
+        // --- PROFESSIONAL AI AGENT: AURA (SYNC ENGINE) ---
+        let scene, camera, renderer, controls;
+        let auraModel = null;
+        let mouthMesh = null;
+        let morphCapableMeshes = [];
+        let isSpeaking = false;
+        let interviewStartedAt = 0;
+        let speechStartTime = 0;
+
+        function initAura() {
+            const container = document.getElementById('avatar-canvas-container');
+            if (!container) return;
+
+            // Show loading status
+            const loaderStatus = document.createElement('div');
+            loaderStatus.id = "aura-loader";
+            loaderStatus.style = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#7c3aed; font-family:monospace; font-weight:bold; animation: pulse 1s infinite;";
+            loaderStatus.innerText = "INITIALIZING AURA...";
+            container.appendChild(loaderStatus);
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0.5, 3.0);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 0.5, 0);
+            controls.enableDamping = true;
+
+            scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(2, 5, 5);
+            scene.add(dirLight);
+
+            const loader = new THREE.GLTFLoader();
+            const modelPath = '../assets/AURA_avatar.glb'; 
+
+            loader.load(modelPath, (gltf) => {
+                if (loaderStatus) loaderStatus.remove();
+                auraModel = gltf.scene;
+                auraModel.position.set(0, -1.0, 0);
+                auraModel.scale.set(2.0, 2.0, 2.0);
+                scene.add(auraModel);
+                
+                let foundMorph = false;
+                auraModel.traverse((obj) => {
+                    // Try to identify the mouthMesh fallback for compatibility
+                    if (obj.isMesh && obj.name === "Mouth_Mesh") {
+                        mouthMesh = obj;
+                    }
+                    
+                    if (obj.isMesh && obj.morphTargetInfluences && obj.morphTargetDictionary) {
+                        console.log("Found mesh with morph targets:", obj.name, obj.morphTargetDictionary);
+                        const keys = Object.keys(obj.morphTargetDictionary);
+                        
+                        // Look for mouth/jaw open keys
+                        const mouthOpenKeys = keys.filter(k => {
+                            const kl = k.toLowerCase();
+                            return kl.includes("mouthopen") || 
+                                   kl.includes("jawopen") || 
+                                   kl.includes("viseme_o") || 
+                                   kl.includes("mouth_open") ||
+                                   kl.includes("jaw_open") ||
+                                   kl.includes("open") ||
+                                   kl.includes("talk") ||
+                                   kl.includes("lip");
+                        });
+                        
+                        // Look for smile/happiness keys
+                        const smileKeys = keys.filter(k => {
+                            const kl = k.toLowerCase();
+                            return kl.includes("smile") || kl.includes("mouthsmile");
+                        });
+
+                        if (mouthOpenKeys.length > 0) {
+                            foundMorph = true;
+                            const mouthIndices = mouthOpenKeys.map(k => obj.morphTargetDictionary[k]);
+                            const smileIndices = smileKeys.map(k => obj.morphTargetDictionary[k]);
+                            morphCapableMeshes.push({
+                                mesh: obj,
+                                mouthIndices: mouthIndices,
+                                smileIndices: smileIndices
+                            });
+                        }
+                    }
+                });
+                
+                if (!foundMorph) {
+                    console.log("No explicit mouth/jaw morph targets found. Looking for any morph targets.");
+                    auraModel.traverse((obj) => {
+                        if (obj.isMesh && obj.morphTargetInfluences && obj.morphTargetDictionary) {
+                            const indices = Object.values(obj.morphTargetDictionary);
+                            if (indices.length > 0) {
+                                morphCapableMeshes.push({
+                                    mesh: obj,
+                                    mouthIndices: [indices[0]],
+                                    smileIndices: indices[1] !== undefined ? [indices[1]] : []
+                                });
+                            }
+                        }
+                    });
+                }
+                
+                console.log("AURA dynamic morph mapping complete. Capable meshes mapped:", morphCapableMeshes.length);
+            }, undefined, (error) => {
+                console.error("Aura Load Error:", error);
+                loaderStatus.innerText = "AURA OFFLINE (PATH ERROR)";
+                // Fallback: A glowing sphere to prove 3D is working
+                const geom = new THREE.SphereGeometry(0.5, 32, 32);
+                const mat = new THREE.MeshPhongMaterial({ color: 0x7c3aed, wireframe: true });
+                const fallback = new THREE.Mesh(geom, mat);
+                fallback.position.y = 0.5;
+                scene.add(fallback);
+                auraModel = fallback;
+            });
+
+            function animate() {
+                requestAnimationFrame(animate);
+                if (controls) controls.update();
+                
+                const now = Date.now();
+                if (auraModel) {
+                    // Idle movement (Matching the JSX)
+                    auraModel.rotation.y = Math.sin(now * 0.0004) * 0.06;
+                    auraModel.position.y = -1.1 + Math.sin(now * 0.0008) * 0.01;
+
+                    const elapsed = (now - speechStartTime) / 1000;
+                    
+                    // --- THE SECRET LIP-SYNC MATH ---
+                    const base = Math.abs(Math.sin(elapsed * 4.5 * Math.PI));
+                    const wobble = Math.abs(Math.sin(elapsed * 9.0 * Math.PI)) * 0.4;
+                    const targetAmp = isSpeaking ? ((base + wobble) / 1.4) : 0;
+
+                    // 1. Dynamic morph targets for robust mesh mapping
+                    if (morphCapableMeshes.length > 0) {
+                        morphCapableMeshes.forEach(item => {
+                            const influences = item.mesh.morphTargetInfluences;
+                            if (influences) {
+                                // Interpolate mouth opening indices
+                                item.mouthIndices.forEach(idx => {
+                                    influences[idx] = THREE.MathUtils.lerp(influences[idx], targetAmp, isSpeaking ? 0.35 : 0.2);
+                                });
+                                // Interpolate smile indices if speaking
+                                item.smileIndices.forEach(idx => {
+                                    influences[idx] = THREE.MathUtils.lerp(influences[idx], isSpeaking ? 0.3 : 0, 0.05);
+                                });
+                            }
+                        });
+                    } else if (mouthMesh && mouthMesh.morphTargetInfluences) {
+                        // 2. Legacy fallback
+                        if (isSpeaking) {
+                            mouthMesh.morphTargetInfluences[0] = THREE.MathUtils.lerp(mouthMesh.morphTargetInfluences[0], targetAmp, 0.35);
+                            mouthMesh.morphTargetInfluences[1] = THREE.MathUtils.lerp(mouthMesh.morphTargetInfluences[1], 0.3, 0.05);
+                        } else {
+                            mouthMesh.morphTargetInfluences[0] = THREE.MathUtils.lerp(mouthMesh.morphTargetInfluences[0], 0, 0.2);
+                        }
+                    }
+                }
+                
+                if (renderer && scene && camera) renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        function speakText(text, isAlert = false) {
+            if (isAlert && (Date.now() - interviewStartedAt < 5000)) return;
+            
+            const feedback = document.getElementById('ai-feedback');
+            feedback.innerHTML = isAlert ? "[AURA: WARNING!]" : "[AURA: SPEAKING...]";
+            feedback.style.color = isAlert ? "var(--danger)" : "#a78bfa";
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.88;
+            utterance.pitch = 1.15;
+
+            // Professional Voice Selection
+            const voices = window.speechSynthesis.getVoices();
+            const preferred = voices.find(v => (v.name.includes("Female") || v.name.includes("Zira") || v.name.includes("Google US English")));
+            if (preferred) utterance.voice = preferred;
+
+            utterance.onstart = () => { 
+                isSpeaking = true; 
+                speechStartTime = Date.now();
+            };
+            utterance.onend = () => { 
+                isSpeaking = false; 
+                feedback.innerHTML = "[AURA: LISTENING]";
+                if (!isAlert) startTimer();
+            };
+
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // --- PLATFORM STARTUP LOGIC ---
+        window.addEventListener('load', async () => {
+            interviewStartedAt = Date.now();
+            initSpeech();
+            initCamera().catch(e => {});
+            initAura();
+            
+            const skills = JSON.parse(sessionStorage.getItem('extracted_skills'));
+            if (!skills) {
+                window.location.href = 'resume.html';
+                return;
+            }
+
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user) {
+                window.location.href = 'resume.html';
+                return;
+            }
+
+            try {
+                const activeCheck = await apiRequest(`/interview/active-session/${user.user_id}`, 'GET');
+                if (activeCheck && activeCheck.has_active && activeCheck.answers_count > 0) {
+                    sessionStorage.setItem('wci_session', activeCheck.session_id);
+                    document.getElementById('start-overlay').style.display = 'flex';
+                } else {
+                    startInterview(false);
+                }
+            } catch (err) {
+                console.error("Error checking active session:", err);
+                startInterview(false);
+            }
+
+            // Wire up input & paste event listeners for proctoring
+            const textInput = document.getElementById('answer-text');
+            if (textInput) {
+                textInput.addEventListener('input', () => {
+                    document.getElementById('char-count').textContent = textInput.value.length;
+                    
+                    // Track start of candidate answering for typing mode
+                    if (candidateStartedAnsweringAt === 0 && textInput.value.length > 0) {
+                        candidateStartedAnsweringAt = Date.now();
+                        actualResponseTimeSeconds = (candidateStartedAnsweringAt - questionLoadedAt) / 1000;
+                        calculateResponseTimeScore();
+                    }
+                });
+                textInput.addEventListener('paste', (e) => {
+                    hasPasted = true;
+                    showProctoringAlert("Copy-pasting is strictly prohibited! This integrity breach has been reported.");
+                    sendLiveUpdate("Verbatim copy-paste detected! (Integrity penalty applied)");
+                });
+            }
+        });
+
+        const originalLoadQuestion = loadQuestion;
+        loadQuestion = function(data) {
+            originalLoadQuestion(data);
+            const qText = data.question.text;
+            if (qText) {
+                setTimeout(() => speakText(qText), 1500);
+            }
+        };
+
+        function toggleMic() { document.getElementById('mic-btn').classList.toggle('active'); }
+        function toggleCam() { 
+            const video = document.getElementById('video-feed');
+            const btn = document.getElementById('cam-btn');
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                btn.classList.remove('active');
+            } else {
+                initCamera();
+            }
+        }
+        async function endInterview() {
+            if (confirm("End session?")) window.location.href = `report.html?session_id=${currentSessionId}`;
+        }
+        
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (typeof ProctoringEngine !== 'undefined') {
+                    ProctoringEngine.triggerTabViolation();
+                }
+                speakText("Please stay focused on the interview tab.", true);
+            }
+        });
+    </script>
+</body>
+</html>

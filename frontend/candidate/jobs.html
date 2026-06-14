@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Available Job Openings | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        body {
+            background-color: #080710;
+            color: #f4f4f5;
+        }
+
+        .layout {
+            margin-left: 240px;
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            transition: margin-left 0.3s;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 24px;
+        }
+
+        .page-title h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+            font-weight: 800;
+        }
+
+        .page-title p {
+            color: #a1a1aa;
+            font-size: 0.95rem;
+        }
+
+        .jobs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 24px;
+            margin-top: 16px;
+        }
+
+        /* Glassmorphic Job Card Style */
+        .job-card {
+            background: rgba(25, 20, 40, 0.45);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            min-height: 280px;
+        }
+
+        .job-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #f43f5e, #be123c);
+            opacity: 0.85;
+        }
+
+        .job-card.completed::before {
+            background: linear-gradient(90deg, #10b981, #059669);
+        }
+
+        .job-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(244, 63, 94, 0.3);
+            box-shadow: 0 12px 40px rgba(244, 63, 94, 0.15);
+        }
+
+        .job-card.completed:hover {
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 12px 40px rgba(16, 185, 129, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 14px;
+            gap: 12px;
+        }
+
+        .job-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.3;
+        }
+
+        .difficulty-indicator {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .diff-easy { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .diff-medium { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .diff-hard { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+
+        .job-description {
+            font-size: 0.85rem;
+            color: #d1d5db;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            flex-grow: 1;
+        }
+
+        .skills-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+
+        .skill-pill {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #e4e4e7;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .card-metadata {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .card-actions {
+            margin-top: auto;
+        }
+
+        .btn-launch {
+            width: 100%;
+            background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3);
+            border: none;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .btn-launch:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(244, 63, 94, 0.45);
+        }
+
+        .btn-completed {
+            width: 100%;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: #34d399;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: not-allowed;
+            text-align: center;
+        }
+
+        /* Rules Modal */
+        #rules-modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(8, 7, 16, 0.9);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-card {
+            background: #110c1f;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            width: 90%;
+            max-width: 520px;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            color: #ffffff;
+            position: relative;
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal-card.show {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: none;
+            color: #a1a1aa;
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #ffffff;
+        }
+
+        .rules-title {
+            color: #f43f5e;
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rules-list {
+            margin: 24px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            text-align: left;
+        }
+
+        .rule-item {
+            display: flex;
+            gap: 12px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+
+        .rule-bullet {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .btn-modal-start {
+            width: 100%;
+            background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+            border: none;
+            padding: 16px;
+            color: white;
+            font-weight: 700;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-modal-start:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(244, 63, 94, 0.55);
+        }
+
+        .empty-jobs-card {
+            background: rgba(25, 20, 40, 0.25);
+            backdrop-filter: blur(12px);
+            border: 1px dashed rgba(255, 255, 255, 0.10);
+            border-radius: 16px;
+            padding: 48px;
+            text-align: center;
+            max-width: 500px;
+            margin: 40px auto;
+            color: #cbd5e1;
+        }
+
+        /* Switch Toggle Styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            transition: 0.3s;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: #cbd5e1;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        input:checked + .slider {
+            background-color: #f43f5e;
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Placeholder -->
+    <aside id="sidebar">
+        <!-- Sidebar placeholder -->
+    </aside>
+
+    <main class="layout">
+        <header class="header-section">
+            <div class="page-title">
+                <h1>💼 Available Job Openings</h1>
+                <p>Browse active listings, examine role descriptions, and complete proctored assessments to verify your skills.</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.08); display: none;">
+                    <span style="font-size: 0.72rem; color: #a1a1aa; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;">⚙️ Developer Bypass</span>
+                    <label class="switch" style="margin: 0;">
+                        <input type="checkbox" id="dev-bypass-toggle" onchange="toggleBypass()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div style="font-size: 2.2rem;">💼</div>
+            </div>
+        </header>
+
+        <!-- Developer QA Testing Panel Banner -->
+        <div id="dev-bypass-banner" class="dev-banner" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 16px 24px; border-radius: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; backdrop-filter: blur(12px); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); transition: all 0.3s ease; margin-top: 10px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div id="dev-banner-icon" style="font-size: 2rem; background: rgba(16, 185, 129, 0.15); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: 0.3s;">🔓</div>
+                <div>
+                    <strong id="dev-banner-title" style="color: #fff; font-size: 1rem; display: block; margin-bottom: 2px;">Developer QA Mode: Bypass Active</strong>
+                    <span id="dev-banner-desc" style="color: #a1a1aa; font-size: 0.85rem;">You can now sit for any job role assessment multiple times to inspect dynamic questions and verify role-specific logic.</span>
+                </div>
+            </div>
+            <div>
+                <button id="dev-toggle-button" onclick="toggleBypassButton()" style="border: none; padding: 10px 20px; border-radius: 10px; color: white; font-weight: 700; cursor: pointer; font-size: 0.85rem; transition: all 0.2s ease;">
+                    Disable Developer Bypass
+                </button>
+            </div>
+        </div>
+
+        <div id="jobs-container" class="jobs-grid">
+            <div class="loading-spinner" style="grid-column: 1 / -1; margin: 40px auto;"></div>
+        </div>
+    </main>
+
+    <!-- Proctoring sitting Modal -->
+    <div id="rules-modal" style="display: none;">
+        <div class="modal-card" id="rules-modal-card">
+            <button class="modal-close" onclick="closeRulesModal()">&times;</button>
+            <div class="rules-title">
+                <span>🛡️ Official Secure Proctoring</span>
+            </div>
+            <h2 id="modal-role" style="font-size: 1.25rem; margin-top: 10px; color: #fff; font-weight: 800;">Backend Developer Evaluation</h2>
+            <p style="color: #a1a1aa; font-size: 0.85rem; margin-top: 4px;">Company official evaluation rules are strictly enforced.</p>
+            
+            <div class="rules-list">
+                <div class="rule-item">
+                    <span class="rule-bullet">📷</span>
+                    <div><strong>Webcam & Mic Mandatory:</strong> Live camera feed is required during the entire assessment. Face tracking will monitor focus.</div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-bullet">🚫</span>
+                    <div><strong>Single Sitting Only:</strong> You cannot pause, leave, or restart. Closing the browser window ends the assessment.</div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-bullet">🖥️</span>
+                    <div><strong>Page Fitting Lock:</strong> Fullscreen mode is required to maintain secure focus. Exiting fullscreen logs a violation.</div>
+                </div>
+                <div class="rule-item">
+                    <span class="rule-bullet">🛡️</span>
+                    <div><strong>Plagiarism Block:</strong> Tab switches, window defocus, and code pasting are disabled and reported instantly.</div>
+                </div>
+            </div>
+
+            <button class="btn-modal-start" onclick="launchSecureSession()">
+                <span>🔓 Enable Camera & Start Assessment</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let availableJobs = [];
+        let completedJobRoles = new Set();
+        let activeJobSessions = new Map(); // maps job title to session_id
+        let selectedJob = null;
+        let candidateId = null;
+
+        window.addEventListener('load', async () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user) {
+                window.location.href = '../login-candidate.html';
+                return;
+            }
+            candidateId = user.user_id;
+            
+            // Sync hidden legacy checkbox & update banner
+            const bypassEnabled = localStorage.getItem('dev_bypass_attempts') === 'true';
+            document.getElementById('dev-bypass-toggle').checked = bypassEnabled;
+            updateBypassBanner();
+
+            await loadCandidateJobsData();
+        });
+
+        async function loadCandidateJobsData() {
+            const container = document.getElementById('jobs-container');
+            try {
+                // 1. Fetch all recruiter jobs
+                const jobs = await apiRequest('/recruiter/job-roles', 'GET');
+                availableJobs = jobs;
+
+                // 2. Fetch candidate's official evaluations to check for completion/in-progress
+                const sessions = await apiRequest(`/candidate/official-interviews/${candidateId}`, 'GET');
+                
+                sessions.forEach(s => {
+                    if (s.job_role) {
+                        if (s.status === 'completed') {
+                            completedJobRoles.add(s.job_role.toLowerCase());
+                        } else if (s.status === 'in_progress') {
+                            activeJobSessions.set(s.job_role.toLowerCase(), s.session_id);
+                        }
+                    }
+                });
+
+                renderJobsList();
+            } catch (err) {
+                console.error("Failed to load jobs:", err);
+                container.innerHTML = `<div style="color:var(--danger); grid-column:1/-1; text-align:center;">Failed to load job listings. ${err.message}</div>`;
+            }
+        }
+
+        function renderJobsList() {
+            const container = document.getElementById('jobs-container');
+            if (availableJobs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-jobs-card" style="grid-column: 1 / -1;">
+                        <span style="font-size: 3rem; margin-bottom: 16px; display: block;">🎯</span>
+                        <h3>No Open Job Listings</h3>
+                        <p>Hiring teams have not posted any active roles yet. Check back soon for official evaluations!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const bypassEnabled = localStorage.getItem('dev_bypass_attempts') === 'true';
+
+            container.innerHTML = availableJobs.map(job => {
+                const titleLower = job.title.toLowerCase();
+                const isCompleted = completedJobRoles.has(titleLower) && !bypassEnabled;
+                const activeSessionId = activeJobSessions.get(titleLower);
+                
+                let actionButtonHtml = "";
+                let completedClass = "";
+
+                if (isCompleted) {
+                    completedClass = "completed";
+                    actionButtonHtml = `<button class="btn-completed" disabled>✅ Assessment Submitted</button>`;
+                } else if (activeSessionId) {
+                    actionButtonHtml = `<button class="btn-launch" onclick="showRulesModal('${job.role_id}', true)">Start Assessment 🎙️</button>`;
+                } else {
+                    actionButtonHtml = `<button class="btn-launch" onclick="showRulesModal('${job.role_id}', false)">Start Assessment 🔒</button>`;
+                }
+
+                const diffClass = `diff-${job.difficulty || 'medium'}`;
+                const diffLabel = (job.difficulty || 'Medium').charAt(0).toUpperCase() + (job.difficulty || 'Medium').slice(1);
+                
+                const skillPills = (job.skills || []).map(s => `<span class="skill-pill">${s}</span>`).join(' ');
+
+                return `
+                    <div class="job-card ${completedClass}">
+                        <div>
+                            <div class="card-header">
+                                <span class="job-title">${job.title}</span>
+                                <span class="difficulty-indicator ${diffClass}">${diffLabel}</span>
+                            </div>
+                            <p class="job-description">${job.description || 'No description provided.'}</p>
+                            <div class="skills-container">${skillPills}</div>
+                        </div>
+                        
+                        <div>
+                            <div class="card-metadata">
+                                <div class="meta-item">
+                                    <span>📋</span>
+                                    <span>${job.num_questions || 10} Questions</span>
+                                </div>
+                                <div class="meta-item">
+                                    <span>🛡️</span>
+                                    <span>One Sitting Attempt</span>
+                                </div>
+                            </div>
+                            
+                            <div class="card-actions">
+                                ${actionButtonHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showRulesModal(roleId, isResume) {
+            selectedJob = availableJobs.find(j => j.role_id === roleId);
+            if (!selectedJob) return;
+
+            document.getElementById('modal-role').textContent = `${selectedJob.title} Assessment`;
+            
+            const modal = document.getElementById('rules-modal');
+            const card = document.getElementById('rules-modal-card');
+            
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                card.classList.add('show');
+            }, 50);
+        }
+
+        function closeRulesModal() {
+            const card = document.getElementById('rules-modal-card');
+            card.classList.remove('show');
+            setTimeout(() => {
+                document.getElementById('rules-modal').style.display = 'none';
+            }, 300);
+        }
+
+        async function launchSecureSession() {
+            if (!selectedJob) return;
+
+            // 1. Request camera and mic access explicitly first, to avoid blocking inside fullscreen
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                // Stop the tracks immediately, we just wanted to grant permission
+                stream.getTracks().forEach(track => track.stop());
+
+                // 2. Request Fullscreen (user gesture context is valid here!)
+                try {
+                    if (document.documentElement.requestFullscreen) {
+                        await document.documentElement.requestFullscreen();
+                    }
+                } catch (fsErr) {
+                    console.warn("Fullscreen request bypassed:", fsErr.message);
+                }
+
+                // 3. Initiate or resume session
+                const titleLower = selectedJob.title.toLowerCase();
+                const activeSessionId = activeJobSessions.get(titleLower);
+
+                let sessionId = activeSessionId;
+                if (!sessionId) {
+                    // Create new session via /start endpoint
+                    const response = await apiRequest('/interview/start', 'POST', {
+                        candidate_id: candidateId,
+                        session_type: 'official',
+                        job_role: selectedJob.title,
+                        difficulty: selectedJob.difficulty || 'medium',
+                        skills: selectedJob.skills || []
+                    });
+                    sessionId = response.session_id;
+                }
+
+                // Redirect to official proctored interview
+                window.location.href = `official-interview.html?session_id=${sessionId}`;
+
+            } catch (err) {
+                alert("Webcam and microphone access are MANDATORY to enter this secure proctored sitting. Please allow device access.");
+            }
+        }
+
+        function toggleBypass() {
+            const checkbox = document.getElementById('dev-bypass-toggle');
+            localStorage.setItem('dev_bypass_attempts', checkbox.checked ? 'true' : 'false');
+            updateBypassBanner();
+            renderJobsList();
+        }
+
+        function toggleBypassButton() {
+            const current = localStorage.getItem('dev_bypass_attempts') === 'true';
+            const next = !current;
+            localStorage.setItem('dev_bypass_attempts', next ? 'true' : 'false');
+            // Sync the hidden checkbox too
+            document.getElementById('dev-bypass-toggle').checked = next;
+            updateBypassBanner();
+            renderJobsList();
+        }
+
+        function updateBypassBanner() {
+            const bypass = localStorage.getItem('dev_bypass_attempts') === 'true';
+            const banner = document.getElementById('dev-bypass-banner');
+            const icon = document.getElementById('dev-banner-icon');
+            const title = document.getElementById('dev-banner-title');
+            const desc = document.getElementById('dev-banner-desc');
+            const btn = document.getElementById('dev-toggle-button');
+
+            if (bypass) {
+                // Active state — green theme
+                banner.style.background = 'rgba(16, 185, 129, 0.08)';
+                banner.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                icon.textContent = '🔓';
+                icon.style.background = 'rgba(16, 185, 129, 0.15)';
+                title.textContent = '⚙️ Developer QA Mode: ENABLED';
+                title.style.color = '#10b981';
+                desc.textContent = 'Attempt lock is OFF — you can start any job assessment multiple times to verify role-specific questions.';
+                btn.textContent = '🔒 Disable Bypass';
+                btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                btn.style.boxShadow = '0 4px 14px rgba(239,68,68,0.35)';
+            } else {
+                // Inactive state — subtle orange/amber theme as a hint
+                banner.style.background = 'rgba(245, 158, 11, 0.06)';
+                banner.style.border = '1px solid rgba(245, 158, 11, 0.2)';
+                icon.textContent = '🔒';
+                icon.style.background = 'rgba(245, 158, 11, 0.1)';
+                title.textContent = '⚙️ Developer QA Mode: Disabled';
+                title.style.color = '#f59e0b';
+                desc.textContent = 'Enable to unlock attempt restrictions and test each job role independently — for QA & development only.';
+                btn.textContent = '🔓 Enable Bypass';
+                btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                btn.style.boxShadow = '0 4px 14px rgba(16,185,129,0.35)';
+            }
+        }
+    </script>
+</body>
+</html>

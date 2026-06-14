@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Candidates | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        .layout { margin-left: 240px; padding: 36px 40px 56px; min-height: 100vh; }
+        .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 24px; }
+        .page-title h1 { font-size: 1.7rem; margin-bottom: 6px; letter-spacing: 0; }
+        .page-title p { color: var(--text-secondary); font-size: 0.92rem; }
+        .directory-card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 18px 45px rgba(30, 27, 75, 0.07); overflow: hidden; }
+        .directory-toolbar { display: grid; grid-template-columns: minmax(280px, 1fr) 150px 150px; gap: 14px; padding: 18px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.76); }
+        .search-input, .filter-select { width: 100%; height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border); background: white; color: var(--text-primary); font: inherit; }
+        .search-input:focus, .filter-select:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+        .directory-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; background: #FBFAFF; border-bottom: 1px solid var(--border); color: var(--text-secondary); font-size: 0.82rem; }
+        .summary-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 999px; background: white; color: var(--text-secondary); font-weight: 700; }
+        .summary-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-primary); }
+        .candidate-table-wrap { overflow-x: auto; }
+        .candidate-table { width: 100%; min-width: 1120px; border-collapse: separate; border-spacing: 0; }
+        .candidate-table th { padding: 14px 16px; text-align: left; color: var(--text-secondary); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); background: white; white-space: nowrap; }
+        .candidate-table td { padding: 18px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        .candidate-table tbody tr { transition: var(--transition); }
+        .candidate-table tbody tr:hover { background: #FBFAFF; }
+        .candidate-table tbody tr:last-child td { border-bottom: none; }
+        .candidate-cell { min-width: 220px; }
+        .candidate-profile { display: flex; align-items: center; gap: 12px; }
+        .candidate-meta strong { display: block; font-size: 0.96rem; margin-bottom: 3px; }
+        .candidate-meta span { display: block; color: var(--text-secondary); font-size: 0.78rem; }
+        .skills-cell { min-width: 280px; max-width: 360px; }
+        .skills-list { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+        .skill-more { color: var(--accent-primary); background: var(--accent-light); border-color: transparent; font-weight: 700; }
+        .score-cell { width: 106px; }
+        .score-circle { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-family: 'JetBrains Mono'; font-size: 0.8rem; border: 1px solid currentColor; }
+        .status-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 78px; padding: 7px 10px; border-radius: 999px; font-size: 0.76rem; font-weight: 800; }
+        .status-clean { background: rgba(16,185,129,0.1); color: var(--success); }
+        .status-flagged { background: rgba(239,68,68,0.1); color: var(--danger); }
+        .status-muted { background: var(--bg-secondary); color: var(--text-secondary); }
+        .actions-cell { min-width: 150px; }
+        .action-row { display: flex; align-items: center; gap: 8px; }
+        .btn-compact { padding: 7px 11px; font-size: 0.78rem; border-radius: 8px; white-space: nowrap; }
+        .empty-row { text-align: center; padding: 52px 24px !important; color: var(--text-secondary); }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; align-items: center; justify-content: center; }
+        .profile-modal { background: white; width: 100%; max-width: 800px; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
+        .modal-header { padding: 32px; background: var(--bg-sidebar); color: white; display: flex; align-items: center; gap: 24px; position: relative; }
+        .modal-body { padding: 32px; overflow-y: auto; }
+
+        @media (max-width: 900px) {
+            .layout { margin-left: 0; padding: 24px 16px; }
+            .page-header { flex-direction: column; align-items: stretch; }
+            .page-header .btn { width: 100%; }
+            .directory-toolbar { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar placeholder -->
+    </aside>
+
+    <main class="layout">
+        <header class="page-header">
+            <div class="page-title">
+                <h1>Candidate Directory</h1>
+                <p>Browse, filter, and review candidates registered in your hiring pipeline.</p>
+            </div>
+            <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
+        </header>
+
+        <div id="loader" class="loading-spinner" style="margin: 40px auto;"></div>
+
+        <div class="directory-card" id="table-wrap" style="display: none;">
+            <div class="directory-toolbar">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search by name, email, or skill..." oninput="filterData()">
+                <select id="scoreFilter" class="filter-select" onchange="filterData()">
+                    <option value="all">All Scores</option>
+                    <option value="high">High (&gt;70%)</option>
+                    <option value="med">Medium (50-70%)</option>
+                    <option value="low">Low (&lt;50%)</option>
+                </select>
+                <select id="shortcutFilter" class="filter-select" onchange="filterData()">
+                    <option value="all">All Status</option>
+                    <option value="clean">Clean</option>
+                    <option value="flagged">Flagged</option>
+                </select>
+            </div>
+            <div class="directory-summary">
+                <span class="summary-pill"><span class="summary-dot"></span><span id="candidate-count">0 candidates</span></span>
+                <span>Use filters to narrow by score, status, name, email, or skill.</span>
+            </div>
+            <div class="candidate-table-wrap">
+                <table class="candidate-table">
+                    <thead>
+                        <tr>
+                            <th class="candidate-cell">Candidate</th>
+                            <th class="skills-cell">Top Skills</th>
+                            <th class="score-cell">Score</th>
+                            <th>Status</th>
+                            <th>Interviews</th>
+                            <th>Last Active</th>
+                            <th class="actions-cell">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="candidates-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- PROFILE MODAL -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="profile-modal">
+            <div class="modal-header">
+                <div class="avatar" id="modal-avatar" style="width: 80px; height: 80px; font-size: 2rem;">?</div>
+                <div style="flex: 1;">
+                    <h2 id="modal-name" style="margin-bottom: 4px;">--</h2>
+                    <p id="modal-email" style="opacity: 0.7;">--</p>
+                </div>
+                <button onclick="closeModal()" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.5rem; position: absolute; top: 20px; right: 20px;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                    <div>
+                        <h3 style="font-size: 0.875rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 16px;">Extracted Skills</h3>
+                        <div id="modal-skills" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 0.875rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 16px;">Overall Proficiency</h3>
+                        <div id="modal-breakdown"></div>
+                    </div>
+                </div>
+                
+                <h3 style="font-size: 0.875rem; color: var(--text-secondary); text-transform: uppercase; margin: 32px 0 16px;">Interview History</h3>
+                <div class="table-container">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr style="text-align: left; font-size: 0.7rem; color: var(--text-secondary);">
+                                <th>Date</th>
+                                <th>Score</th>
+                                <th>Shortcut</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-history"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let allCandidates = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user || user.role !== 'recruiter') { window.location.href = '../index.html'; return; }
+
+            try {
+                allCandidates = await apiRequest('/recruiter/candidates');
+                renderTable(allCandidates);
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('table-wrap').style.display = 'block';
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        function renderTable(data) {
+            const body = document.getElementById('candidates-body');
+            const count = document.getElementById('candidate-count');
+            if (count) {
+                count.textContent = `${data.length} candidate${data.length === 1 ? '' : 's'}`;
+            }
+            if (data.length === 0) {
+                body.innerHTML = '<tr><td colspan="7" class="empty-row">No candidates found matching filters.</td></tr>';
+                return;
+            }
+
+            body.innerHTML = data.map(c => {
+                const scoreColor = c.score > 70 ? 'var(--success)' : c.score > 50 ? 'var(--warning)' : 'var(--danger)';
+                const skills = Array.isArray(c.skills) ? c.skills : [];
+                const initials = (c.name || '?').charAt(0).toUpperCase();
+                const displayScore = c.score ? `<div class="score-circle" style="background: ${scoreColor}11; color: ${scoreColor}">${c.score}%</div>` : '<span class="status-badge status-muted">No score</span>';
+                const displayStatus = c.shortcut ? '<span class="status-badge status-flagged">Flagged</span>' : c.score ? '<span class="status-badge status-clean">Clean</span>' : '<span class="status-badge status-muted">Pending</span>';
+
+                return `
+                    <tr>
+                        <td class="candidate-cell">
+                            <div class="candidate-profile">
+                                <div class="avatar">${initials}</div>
+                                <div class="candidate-meta">
+                                    <strong>${c.name}</strong>
+                                    <span>${c.email}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="skills-cell">
+                            <div class="skills-list">
+                                ${skills.slice(0, 4).map(s => `<span class="tag">${s}</span>`).join('')}
+                                ${skills.length > 4 ? `<span class="tag skill-more">+${skills.length - 4}</span>` : ''}
+                            </div>
+                        </td>
+                        <td class="score-cell">${displayScore}</td>
+                        <td>${displayStatus}</td>
+                        <td class="mono" style="font-weight: 800;">${c.interviews_count}</td>
+                        <td style="font-size: 0.8125rem; color: var(--text-secondary);">${c.last_active}</td>
+                        <td class="actions-cell">
+                            <div class="action-row">
+                                <button class="btn btn-secondary btn-compact" onclick="viewProfile('${c.user_id}')">Profile</button>
+                                ${c.last_report_id ? `<button class="btn btn-primary btn-compact" onclick="window.location.href='report.html?report_id=${c.last_report_id}'">Report</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterData() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const scoreF = document.getElementById('scoreFilter').value;
+            const shortF = document.getElementById('shortcutFilter').value;
+
+            const filtered = allCandidates.filter(c => {
+                const skills = Array.isArray(c.skills) ? c.skills : [];
+                const matchesSearch = c.name.toLowerCase().includes(query) || c.email.toLowerCase().includes(query) || skills.some(s => String(s).toLowerCase().includes(query));
+                
+                let matchesScore = true;
+                if (scoreF === 'high') matchesScore = c.score > 70;
+                else if (scoreF === 'med') matchesScore = c.score >= 50 && c.score <= 70;
+                else if (scoreF === 'low') matchesScore = c.score < 50;
+
+                let matchesShort = true;
+                if (shortF === 'clean') matchesShort = !c.shortcut;
+                else if (shortF === 'flagged') matchesShort = c.shortcut;
+
+                return matchesSearch && matchesScore && matchesShort;
+            });
+
+            renderTable(filtered);
+        }
+
+        async function viewProfile(id) {
+            const c = allCandidates.find(cand => cand.user_id === id);
+            if (!c) return;
+
+            document.getElementById('modal-name').textContent = c.name;
+            document.getElementById('modal-email').textContent = c.email;
+            document.getElementById('modal-avatar').textContent = c.name.charAt(0).toUpperCase();
+            document.getElementById('modal-skills').innerHTML = (c.skills || []).map(s => {
+                const skillName = typeof s === 'object' && s !== null ? (s.name || s.label || '') : s;
+                return `<span class="tag">${skillName}</span>`;
+            }).join('');
+            
+            // Breakdown (Conceptual, Practical, Behavioral)
+            const b = c.breakdown || { conceptual: 0, practical: 0, behavioral: 0 };
+            document.getElementById('modal-breakdown').innerHTML = ['conceptual', 'practical', 'behavioral'].map(type => `
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;"><span>${type.toUpperCase()}</span><span>${b[type]}%</span></div>
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${b[type]}%"></div></div>
+                </div>
+            `).join('');
+
+            // History
+            const historyBody = document.getElementById('modal-history');
+            if (c.history && c.history.length > 0) {
+                historyBody.innerHTML = c.history.map(h => `
+                    <tr>
+                        <td style="font-size: 0.8125rem;">${h.date}</td>
+                        <td class="mono" style="font-weight: 700;">${h.score}%</td>
+                        <td>${h.shortcut ? 'Flagged' : '&mdash;'}</td>
+                        <td><a href="report.html?report_id=${h.report_id}" style="color: var(--accent-primary); text-decoration: none; font-size: 0.75rem;">View</a></td>
+                    </tr>
+                `).join('');
+            } else {
+                historyBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-secondary);">No sessions found</td></tr>';
+            }
+
+            document.getElementById('modal-overlay').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+        
+        function exportCSV() {
+            let csv = 'Name,Email,Score,Shortcut,Interviews,Skills\n';
+            allCandidates.forEach(c => {
+                csv += `"${c.name}","${c.email}",${c.score || 0},${c.shortcut ? 'Flagged' : 'Clean'},${c.interviews_count},"${(c.skills || []).join('|')}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'candidates_export.csv';
+            a.click();
+        }
+    </script>
+</body>
+</html>

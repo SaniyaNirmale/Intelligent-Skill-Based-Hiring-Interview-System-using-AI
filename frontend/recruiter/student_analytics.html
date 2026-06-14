@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Performance Deep Dive | WCI Engine</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/sidebar.css">
+    <style>
+        .layout { margin-left: 240px; padding: 40px; display: flex; flex-direction: column; gap: 32px; transition: margin-left 0.3s; }
+        
+        .header-section { display: flex; justify-content: space-between; align-items: center; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+        
+        .analytics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px; }
+        .full-width-card { grid-column: span 2; }
+        
+        .chart-container { position: relative; height: 320px; width: 100%; margin-top: 16px; }
+        
+        .profile-banner-card {
+            background: white; 
+            border: 1px solid var(--border); 
+            border-radius: 16px; 
+            padding: 28px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+            position: relative;
+            overflow: hidden;
+        }
+        .profile-banner-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-primary) 0%, #10B981 100%);
+        }
+        
+        .cand-avatar { 
+            width: 64px; 
+            height: 64px; 
+            border-radius: 12px; 
+            background: var(--accent-primary); 
+            color: white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: 700; 
+            font-size: 1.6rem; 
+            flex-shrink: 0; 
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+        }
+        
+        .stat-card {
+            position: relative;
+            overflow: hidden;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: var(--transition);
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(124, 58, 237, 0.08);
+        }
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-primary);
+        }
+        .stat-card.success::after { background: var(--success); }
+        .stat-card.warning::after { background: var(--warning); }
+        .stat-card.danger::after { background: var(--danger); }
+        
+        .stat-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; display: block; }
+        .stat-main { font-size: 1.75rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; display: flex; align-items: baseline; gap: 6px; }
+        .stat-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; }
+
+        .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-top: 12px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 16px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border); background: var(--bg-secondary); font-weight: 700; }
+        td { padding: 16px; font-size: 0.875rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background-color: rgba(248, 247, 255, 0.5); }
+    </style>
+</head>
+<body>
+    <aside id="sidebar">
+        <!-- Sidebar populated via sidebar.js -->
+    </aside>
+
+    <main class="layout">
+        <!-- Back Navigation & Header -->
+        <div class="header-section">
+            <header>
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+                    <a href="analytics.html" id="back-btn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; font-weight: 700;">
+                        ← Back to Analytics
+                    </a>
+                </div>
+                <h1 style="font-size: 1.5rem; margin-bottom: 4px;">Student Performance History</h1>
+                <p style="color: var(--text-secondary); font-size: 0.875rem;">Dynamic multi-dimensional timeline, skill gaps analysis, and credibility logs.</p>
+            </header>
+        </div>
+
+        <!-- Candidate Profile Banner -->
+        <div class="profile-banner-card">
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <div id="p-avatar" class="cand-avatar">--</div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                        <h2 id="p-name" style="font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--text-primary);">Loading...</h2>
+                        <span id="p-status-badge" class="badge" style="font-size: 0.7rem; padding: 4px 12px; border-radius: 12px; font-weight: 700; text-transform: uppercase;">Not Started</span>
+                    </div>
+                    <span id="p-email" style="color: var(--text-secondary); font-size: 0.9rem;">--</span>
+                    <div id="p-resume-skills" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                        <!-- Dynamically filled resume skills tags -->
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                <span class="tag mono" id="p-last-active" style="font-size: 0.75rem; font-weight: 700;">Last Active: --</span>
+                <span class="badge badge-info" style="font-size: 0.65rem; font-weight: 800;">👨‍💻 Verified Profile</span>
+            </div>
+        </div>
+
+        <!-- Metric Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Overall Performance</span>
+                <div class="stat-main" id="p-overall-score">--%</div>
+                <div class="stat-sub">Progressive technical score</div>
+            </div>
+            <div class="stat-card success">
+                <span class="stat-label">Credibility Index</span>
+                <div class="stat-main" id="p-credibility-score">--%</div>
+                <div class="stat-sub">Integrity/Trustworthiness rating</div>
+            </div>
+            <div class="stat-card warning">
+                <span class="stat-label">Interviews Started</span>
+                <div class="stat-main" id="p-interviews-count">0</div>
+                <div class="stat-sub">Total session attempts</div>
+            </div>
+            <div class="stat-card" id="p-security-card">
+                <span class="stat-label">Security Integrity</span>
+                <div class="stat-main" id="p-security-status" style="font-size: 1.15rem; font-family: inherit; font-weight: 700;">Secure</div>
+                <div class="stat-sub" id="p-security-sub">Real-time proctor status</div>
+            </div>
+        </div>
+
+        <!-- Premium Charts Grid -->
+        <div class="analytics-grid">
+            <!-- 1. Credibility Timeline Graph (Full Width) -->
+            <div class="card full-width-card">
+                <h3 style="font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+                    📈 Credibility Score Distribution Timeline
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.8rem; margin-top: -8px;">
+                    Plots the candidate's technical performance and live credibility score over each session attempt.
+                </p>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="credibilityTimelineChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 2. Technical Skill Breakdowns -->
+            <div class="card">
+                <h3 style="font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+                    🧠 Technical Skill Proficiency Breakdown
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.8rem; margin-top: -8px;">
+                    Scores assessed across verified technical competencies.
+                </p>
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="skillsBreakdownChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 3. Behavioral Trends -->
+            <div class="card">
+                <h3 style="font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+                    🛡️ Behavioral Signal Trends
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.8rem; margin-top: -8px;">
+                    Tracks eye contact, speaking confidence, and verbal response clarity across sessions.
+                </p>
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="behavioralTrendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions & Proctoring History Table -->
+        <div class="card" style="padding: 24px;">
+            <h3 style="font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+                📅 Candidate Session History & Security Audits
+            </h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date / Session Index</th>
+                            <th>Skills Assessed</th>
+                            <th>Performance Score</th>
+                            <th>Integrity Rating</th>
+                            <th>Assessment Status</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessions-table-body">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                <div class="loading-spinner" style="margin: 0 auto 12px auto;"></div>
+                                Loading session audits database...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/sidebar.js"></script>
+    <script>
+        let credibilityTimelineChart = null;
+        let skillsBreakdownChart = null;
+        let behavioralTrendsChart = null;
+        let candidateId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(sessionStorage.getItem('wci_user'));
+            if (!user || user.role !== 'recruiter') {
+                window.location.href = '../index.html';
+                return;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            candidateId = urlParams.get('candidate_id');
+
+            if (!candidateId) {
+                alert("No candidate ID specified.");
+                window.location.href = 'analytics.html';
+                return;
+            }
+
+            // Bind back link query state
+            document.getElementById('back-btn').href = `analytics.html?candidate_id=${candidateId}`;
+
+            loadStudentPerformance();
+        });
+
+        async function loadStudentPerformance() {
+            try {
+                // 1. Fetch the candidate data from the recruiter candidates list
+                const candidates = await apiRequest('/recruiter/candidates');
+                const candidateObj = candidates.find(c => c.user_id === candidateId);
+
+                if (!candidateObj) {
+                    alert("Selected candidate was not found.");
+                    window.location.href = 'analytics.html';
+                    return;
+                }
+
+                // 2. Fetch specific candidate analytics timeline data
+                const analytics = await apiRequest(`/candidate/analytics/${candidateId}`);
+
+                // Populate UI Profile Banner & details
+                populateCandidateHeader(candidateObj, analytics);
+
+                // Populate Stats Metrics row
+                populateStatsMetrics(candidateObj, analytics);
+
+                // Build Chart.js plots
+                plotTimelineChart(analytics);
+                plotSkillsChart(analytics);
+                plotBehavioralChart(analytics);
+
+                // Populate Sessions Table
+                populateSessionsTable(analytics, candidateObj);
+
+            } catch (err) {
+                console.error("Failed to load student performance report:", err);
+                alert("Could not load student performance profile. Connection error.");
+            }
+        }
+
+        function populateCandidateHeader(cand, analytics) {
+            document.getElementById('p-avatar').textContent = cand.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('p-name').textContent = cand.name;
+            document.getElementById('p-email').textContent = cand.email;
+            document.getElementById('p-last-active').textContent = `Last Active: ${cand.last_active}`;
+            
+            // Status Badge
+            const badge = document.getElementById('p-status-badge');
+            badge.textContent = cand.status === 'in_progress' ? 'In Progress' : cand.status === 'completed' ? 'Completed' : 'Not Started';
+            if (cand.status === 'in_progress') {
+                badge.className = 'badge badge-medium';
+                badge.style.background = 'var(--warning)';
+                badge.style.color = 'black';
+            } else if (cand.status === 'completed') {
+                badge.className = 'badge badge-easy';
+                badge.style.background = 'var(--success)';
+                badge.style.color = 'white';
+            } else {
+                badge.className = 'badge';
+                badge.style.background = '#9CA3AF';
+                badge.style.color = 'white';
+            }
+
+            // Skills Grid
+            const skillsContainer = document.getElementById('p-resume-skills');
+            skillsContainer.innerHTML = '';
+            if (cand.skills && cand.skills.length > 0) {
+                cand.skills.forEach(skill => {
+                    const span = document.createElement('span');
+                    span.className = 'tag';
+                    span.textContent = skill;
+                    skillsContainer.appendChild(span);
+                });
+            } else {
+                skillsContainer.innerHTML = '<span style="font-size: 0.8rem; color: var(--text-secondary);">No resume skills extracted yet.</span>';
+            }
+        }
+
+        function populateStatsMetrics(cand, analytics) {
+            // Overall progressive/completed score
+            let displayScore = cand.score !== null ? `${cand.score}%` : '--%';
+            if (cand.score === null && analytics.score_over_time && analytics.score_over_time.length > 0) {
+                displayScore = `${Math.round(analytics.score_over_time[analytics.score_over_time.length - 1].score)}%`;
+            }
+            document.getElementById('p-overall-score').textContent = displayScore;
+
+            // Credibility Score (Integrity Trustworthiness)
+            let latestCred = 100.0;
+            if (analytics.behavioral_trends && analytics.behavioral_trends.eye_contact && analytics.behavioral_trends.eye_contact.length > 0) {
+                latestCred = analytics.behavioral_trends.eye_contact[analytics.behavioral_trends.eye_contact.length - 1];
+            }
+            document.getElementById('p-credibility-score').textContent = `${Math.round(latestCred)}%`;
+
+            // Interviews Count
+            document.getElementById('p-interviews-count').textContent = cand.interviews_count;
+
+            // Proctoring Status details card
+            const integrityEl = document.getElementById('p-security-status');
+            const integrityCard = document.getElementById('p-security-card');
+            const securitySub = document.getElementById('p-security-sub');
+            
+            if (cand.shortcut) {
+                integrityEl.textContent = 'Action Required';
+                integrityEl.style.color = 'var(--danger)';
+                integrityCard.style.borderLeft = '4px solid var(--danger)';
+                securitySub.textContent = 'Proctor violations flagged';
+            } else {
+                integrityEl.textContent = 'Secure';
+                integrityEl.style.color = 'var(--success)';
+                integrityCard.style.borderLeft = '4px solid var(--success)';
+                securitySub.textContent = 'No proctoring concerns';
+            }
+        }
+
+        function plotTimelineChart(analytics) {
+            const ctx = document.getElementById('credibilityTimelineChart').getContext('2d');
+            if (credibilityTimelineChart) credibilityTimelineChart.destroy();
+            
+            const labels = analytics.score_over_time.map(pt => pt.date);
+            const scores = analytics.score_over_time.map(pt => pt.score);
+            const creds = analytics.behavioral_trends.eye_contact;
+            
+            const scoreGrad = ctx.createLinearGradient(0, 0, 0, 280);
+            scoreGrad.addColorStop(0, 'rgba(124, 58, 237, 0.35)');
+            scoreGrad.addColorStop(1, 'rgba(124, 58, 237, 0.0)');
+            
+            const credGrad = ctx.createLinearGradient(0, 0, 0, 280);
+            credGrad.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+            credGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+            credibilityTimelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Performance score',
+                            data: scores,
+                            borderColor: '#7C3AED',
+                            borderWidth: 3,
+                            backgroundColor: scoreGrad,
+                            fill: true,
+                            tension: 0.35,
+                            pointBackgroundColor: '#7C3AED',
+                            pointHoverRadius: 8
+                        },
+                        {
+                            label: 'Credibility score',
+                            data: creds,
+                            borderColor: '#10B981',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            backgroundColor: credGrad,
+                            fill: true,
+                            tension: 0.35,
+                            pointBackgroundColor: '#10B981',
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            position: 'top', 
+                            labels: { font: { family: 'DM Sans', size: 12, weight: 'bold' } } 
+                        } 
+                    },
+                    scales: {
+                        y: { 
+                            min: 0, 
+                            max: 100, 
+                            ticks: { callback: v => v + '%' } 
+                        },
+                        x: { 
+                            ticks: { font: { size: 10 } } 
+                        }
+                    }
+                }
+            });
+        }
+
+        function plotSkillsChart(analytics) {
+            const ctx = document.getElementById('skillsBreakdownChart').getContext('2d');
+            if (skillsBreakdownChart) skillsBreakdownChart.destroy();
+            
+            const skillNames = Object.keys(analytics.skill_scores);
+            const skillValues = Object.values(analytics.skill_scores);
+            
+            skillsBreakdownChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: skillNames,
+                    datasets: [{
+                        data: skillValues,
+                        backgroundColor: 'rgba(124, 58, 237, 0.8)',
+                        hoverBackgroundColor: 'var(--accent-hover)',
+                        borderRadius: 4,
+                        maxBarThickness: 18
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { 
+                            min: 0, 
+                            max: 100, 
+                            ticks: { callback: v => v + '%' } 
+                        },
+                        y: { 
+                            ticks: { font: { family: 'DM Sans', size: 10, weight: '700' } } 
+                        }
+                    }
+                }
+            });
+        }
+
+        function plotBehavioralChart(analytics) {
+            const ctx = document.getElementById('behavioralTrendsChart').getContext('2d');
+            if (behavioralTrendsChart) behavioralTrendsChart.destroy();
+            
+            behavioralTrendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: analytics.behavioral_trends.dates,
+                    datasets: [
+                        {
+                            label: 'Eye Contact',
+                            data: analytics.behavioral_trends.eye_contact,
+                            borderColor: '#3B82F6',
+                            borderWidth: 2.5,
+                            tension: 0.3,
+                            fill: false,
+                            pointBackgroundColor: '#3B82F6'
+                        },
+                        {
+                            label: 'Speaking Confidence',
+                            data: analytics.behavioral_trends.confidence,
+                            borderColor: '#10B981',
+                            borderWidth: 2.5,
+                            tension: 0.3,
+                            fill: false,
+                            pointBackgroundColor: '#10B981'
+                        },
+                        {
+                            label: 'Response Clarity',
+                            data: analytics.behavioral_trends.speed,
+                            borderColor: '#F59E0B',
+                            borderWidth: 2.5,
+                            tension: 0.3,
+                            fill: false,
+                            pointBackgroundColor: '#F59E0B'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            position: 'top', 
+                            labels: { boxWidth: 12, font: { size: 10, family: 'DM Sans' } } 
+                        } 
+                    },
+                    scales: {
+                        y: { 
+                            min: 0, 
+                            max: 100, 
+                            ticks: { callback: v => v + '%' } 
+                        },
+                        x: { 
+                            ticks: { font: { size: 10 } } 
+                        }
+                    }
+                }
+            });
+        }
+
+        function populateSessionsTable(analytics, cand) {
+            const tbody = document.getElementById('sessions-table-body');
+            tbody.innerHTML = '';
+
+            const sessions = analytics.sessions;
+
+            if (!sessions || sessions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                            No registered sessions found for this candidate.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Map and render each session
+            tbody.innerHTML = sessions.map((s, idx) => {
+                const isCompleted = s.status !== 'in_progress';
+                const skillsTags = s.skills 
+                    ? s.skills.map(skill => {
+                        const skillName = typeof skill === 'object' && skill !== null ? (skill.name || skill.label || '') : skill;
+                        return `<span class="tag">${skillName}</span>`;
+                    }).join(' ')
+                    : '<span class="tag">General</span>';
+                
+                const scoreDisplay = s.score !== null && s.score !== "--" ? `${s.score}%` : '--';
+                
+                let statusText = 'Completed';
+                let statusClass = 'badge-easy';
+                let actionBtn = '';
+
+                if (s.status === 'in_progress' || !isCompleted) {
+                    statusText = 'In Progress';
+                    statusClass = 'badge-medium';
+                    actionBtn = `
+                        <button class="btn btn-primary" style="padding: 6px 12px; font-size: 0.8rem; background: var(--accent-primary);" onclick="window.location.href='live-monitor.html'">
+                            🔴 Monitor Live
+                        </button>
+                    `;
+                } else {
+                    actionBtn = `
+                        <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="window.location.href='report.html?report_id=${s.report_id}'">
+                            📂 View Report
+                        </button>
+                    `;
+                }
+
+                // Integrity estimation (violations decrement starting at 100)
+                let trustRating = '100% Secure';
+                let trustClass = 'badge-easy';
+                if (cand.history && cand.history[idx]) {
+                    const h = cand.history[idx];
+                    trustRating = `${Math.round(h.score)}% Trust`;
+                    trustClass = h.shortcut ? 'badge-hard' : 'badge-easy';
+                } else if (analytics.behavioral_trends && analytics.behavioral_trends.eye_contact && analytics.behavioral_trends.eye_contact[idx]) {
+                    const credVal = analytics.behavioral_trends.eye_contact[idx];
+                    trustRating = `${Math.round(credVal)}% Trust`;
+                    trustClass = credVal >= 80 ? 'badge-easy' : credVal >= 60 ? 'badge-info' : 'badge-hard';
+                }
+
+                return `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 700; color: var(--text-primary);">Session ${idx + 1}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${s.date}</div>
+                        </td>
+                        <td>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 250px;">
+                                ${skillsTags}
+                            </div>
+                        </td>
+                        <td>
+                            <strong class="mono" style="font-size: 0.95rem; color: var(--text-primary);">${scoreDisplay}</strong>
+                        </td>
+                        <td>
+                            <span class="badge ${trustClass} mono">${trustRating}</span>
+                        </td>
+                        <td>
+                            <span class="badge ${statusClass}" style="text-transform: uppercase;">${statusText}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            ${actionBtn}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>
