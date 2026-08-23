@@ -1,9 +1,6 @@
 # Environment configuration file (contains sensitive API keys)
 .env
 
-# Ignore README.md
-README.md
-
 # Python compilation and caches
 __pycache__/
 *.py[cod]
