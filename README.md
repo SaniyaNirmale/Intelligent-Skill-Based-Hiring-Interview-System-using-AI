@@ -40,6 +40,26 @@ The system is split into three layers:
 
 ---
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="Screenshot 2026-08-23 103935.png" alt="Screenshot 1" width="48%"/>
+  &nbsp;
+  <img src="Screenshot 2026-08-23 104120.png" alt="Screenshot 2" width="48%"/>
+</p>
+
+<p align="center">
+  <img src="Screenshot 2026-08-23 104253.png" alt="Screenshot 3" width="48%"/>
+  &nbsp;
+  <img src="Screenshot 2026-08-23 104550.png" alt="Screenshot 4" width="48%"/>
+</p>
+
+<p align="center">
+  <img src="Screenshot 2026-08-23 104724.png" alt="Screenshot 5" width="60%"/>
+</p>
+
+---
+
 ## ✨ Key Features
 
 ### 👤 Candidate Side
