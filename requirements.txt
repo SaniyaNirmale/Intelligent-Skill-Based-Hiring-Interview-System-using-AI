@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 pydantic-settings
 email-validator
@@ -8,4 +8,5 @@ sentence-transformers
 PyPDF2
 requests
 websockets
-numpy
+numpy<2.0
+python-multipart
