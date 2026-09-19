@@ -38,13 +38,16 @@ app.mount("/frontend", StaticFiles(directory=frontend_path), name="frontend")
 
 from fastapi.responses import RedirectResponse
 
+from backend.data_utils import read_json, write_json, get_data_dir, get_snapshots_dir
+
 @app.get("/")
 async def root_redirect():
     return RedirectResponse(url="/frontend/index.html")
 
 @app.get("/recruiter/snapshot/{session_id}")
 async def get_snapshot(session_id: str):
-    path = f"backend/data/snapshots/{session_id}.jpg"
+    snapshots_dir = get_snapshots_dir()
+    path = os.path.join(snapshots_dir, f"{session_id}.jpg")
     if os.path.exists(path):
         with open(path, "rb") as f:
             return Response(content=f.read(), media_type="image/jpeg")
@@ -58,7 +61,7 @@ connected_candidates = {}
 async def candidate_socket(websocket: WebSocket, session_id: str):
     await websocket.accept()
     connected_candidates[session_id] = websocket
-    os.makedirs("backend/data/snapshots", exist_ok=True)
+    snapshots_dir = get_snapshots_dir()
     try:
         while True:
             data = await websocket.receive_json()
@@ -67,7 +70,8 @@ async def candidate_socket(websocket: WebSocket, session_id: str):
             if data.get("type") == "snapshot" and "image" in data:
                 try:
                     img_data = data["image"].split(",")[1]
-                    with open(f"backend/data/snapshots/{session_id}.jpg", "wb") as f:
+                    snapshot_file = os.path.join(snapshots_dir, f"{session_id}.jpg")
+                    with open(snapshot_file, "wb") as f:
                         f.write(base64.b64decode(img_data))
                 except: pass
 
@@ -97,24 +101,12 @@ async def recruiter_monitor(websocket: WebSocket, session_id: str):
     except WebSocketDisconnect:
         connected_recruiters[session_id].remove(websocket)
 
-# Helpers
-def read_json(filename):
-    path = os.path.join("backend/data", filename)
-    if not os.path.exists(path):
-        return []
-    with open(path, "r") as f:
-        return json.load(f)
-
-def write_json(filename, data):
-    path = os.path.join("backend/data", filename)
-    with open(path, "w") as f:
-        json.dump(data, f, indent=4)
-
 # Initialize Data Files
 DATA_FILES = ["candidates.json", "recruiters.json", "sessions.json", "reports.json", "practice_sessions.json", "official_sessions.json", "coding_reports.json", "job_roles.json"]
-os.makedirs("backend/data", exist_ok=True)
+data_dir = get_data_dir()
 for f in DATA_FILES:
-    if not os.path.exists(os.path.join("backend/data", f)):
+    file_path = os.path.join(data_dir, f)
+    if not os.path.exists(file_path):
         if f == "job_roles.json":
             default_jobs = [
                 {

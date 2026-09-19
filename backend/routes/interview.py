@@ -9,12 +9,10 @@ import os
 
 router = APIRouter(prefix="/interview", tags=["Interview"])
 
-DATA_DIR = "backend/data"
+from backend.data_utils import read_json as _read_json, write_json as _write_json
 
 def read_json(filename):
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(path): return []
-    with open(path, "r") as f: data = json.load(f)
+    data = _read_json(filename)
     if filename in ["sessions.json", "practice_sessions.json", "official_sessions.json"]:
         by_candidate = {}
         for s in data:
@@ -32,12 +30,11 @@ def read_json(filename):
                     s['status'] = 'completed'
                     modified = True
         if modified:
-            with open(path, "w") as f: json.dump(data, f, indent=4)
+            _write_json(filename, data)
     return data
 
 def write_json(filename, data):
-    path = os.path.join(DATA_DIR, filename)
-    with open(path, "w") as f: json.dump(data, f, indent=4)
+    _write_json(filename, data)
 
 def get_session_by_id(session_id: str):
     # Try reading practice sessions

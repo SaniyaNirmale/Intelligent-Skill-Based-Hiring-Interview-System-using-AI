@@ -1,7 +1,5 @@
 import re
-import spacy
 import json
-from sentence_transformers import SentenceTransformer, util
 from backend.services import llm_client
 
 # ---------------------------------------------------------------------------
@@ -89,19 +87,32 @@ NORMALIZATION_MAP = {
     "llm api": "LLM APIs",
 }
 
+all_flat_skills = [s for sub in SKILLS_DICTIONARY.values() for s in sub]
+
 # -------------------------------------------------------------------------
-# Load NLP models once at import time
+# Load NLP models with safe fallback
 # -------------------------------------------------------------------------
 try:
+    import spacy
     nlp = spacy.load("en_core_web_sm")
 except Exception:
     nlp = None
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
+_skill_model = None
+_skill_embeddings = None
 
-# Pre-compute embeddings for the fallback dictionary (used in Phase 3 only)
-all_flat_skills = [s for sub in SKILLS_DICTIONARY.values() for s in sub]
-skill_embeddings = model.encode(all_flat_skills)
+def get_skill_model():
+    global _skill_model, _skill_embeddings
+    if _skill_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            _skill_model = SentenceTransformer('all-MiniLM-L6-v2')
+            _skill_embeddings = _skill_model.encode(all_flat_skills)
+        except Exception as e:
+            print(f"[skill_extractor] SentenceTransformer unavailable (serverless fallback): {e}")
+            _skill_model = False
+            _skill_embeddings = None
+    return (_skill_model, _skill_embeddings) if _skill_model is not False else (None, None)
 
 
 # -------------------------------------------------------------------------
@@ -388,8 +399,10 @@ def extract_skills(text: str) -> list[dict]:
                     })
 
     # ---- PHASE 3: Semantic similarity (whole-resume, deep fallback) ------
-    if nlp and not found_skills:
+    st_model, st_embeddings = get_skill_model()
+    if nlp and st_model and st_embeddings is not None and not found_skills:
         try:
+            from sentence_transformers import util
             doc = nlp(text)
             candidates = list(set([
                 chunk.text.lower().strip()
@@ -397,8 +410,8 @@ def extract_skills(text: str) -> list[dict]:
                 if 3 < len(chunk.text) < 35
             ]))[:50]
             if candidates:
-                cand_embeddings = model.encode(candidates, convert_to_tensor=True)
-                cosine_scores = util.cos_sim(cand_embeddings, skill_embeddings)
+                cand_embeddings = st_model.encode(candidates, convert_to_tensor=True)
+                cosine_scores = util.cos_sim(cand_embeddings, st_embeddings)
                 for i in range(len(candidates)):
                     best_idx = int(cosine_scores[i].argmax())
                     score = float(cosine_scores[i][best_idx])

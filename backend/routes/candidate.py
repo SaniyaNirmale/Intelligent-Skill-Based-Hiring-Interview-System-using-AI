@@ -6,19 +6,13 @@ from datetime import datetime
 
 router = APIRouter(prefix="/candidate", tags=["Candidate"])
 
-DATA_DIR = "backend/data"
+from backend.data_utils import read_json as _read_json, get_data_dir
 
 def read_json(filename):
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(path): return []
-    with open(path, "r") as f: data = json.load(f)
+    path = os.path.join(get_data_dir(), filename)
+    data = _read_json(filename)
     if filename == "sessions.json":
-        practice_path = os.path.join(DATA_DIR, "practice_sessions.json")
-        practice_data = []
-        if os.path.exists(practice_path):
-            with open(practice_path, "r") as pf:
-                try: practice_data = json.load(pf)
-                except: practice_data = []
+        practice_data = _read_json("practice_sessions.json")
                 
         for s in practice_data:
             s["session_type"] = "practice"

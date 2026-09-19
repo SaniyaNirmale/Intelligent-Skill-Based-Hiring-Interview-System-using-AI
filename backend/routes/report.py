@@ -10,16 +10,7 @@ import os
 
 router = APIRouter(prefix="/report", tags=["Report"])
 
-DATA_DIR = "backend/data"
-
-def read_json(filename):
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(path): return []
-    with open(path, "r") as f: return json.load(f)
-
-def write_json(filename, data):
-    path = os.path.join(DATA_DIR, filename)
-    with open(path, "w") as f: json.dump(data, f, indent=4)
+from backend.data_utils import read_json, write_json
 
 @router.post("/generate")
 async def generate_report(body: dict):

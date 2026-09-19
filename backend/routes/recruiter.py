@@ -7,33 +7,13 @@ from datetime import datetime
 
 router = APIRouter(prefix="/recruiter", tags=["Recruiter"])
 
-DATA_DIR = "backend/data"
+from backend.data_utils import read_json as _read_json, write_json as _write_json, get_data_dir, get_snapshots_dir
 
 def read_json(filename):
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(path): return []
-    with open(path, "r") as f: data = json.load(f)
-    
+    data = _read_json(filename)
     if filename == "sessions.json":
-        # recruiter reads sessions.json merged with official_sessions.json, but no practice
-        official_path = os.path.join(DATA_DIR, "official_sessions.json")
-        official_data = []
-        if os.path.exists(official_path):
-            with open(official_path, "r") as of:
-                try:
-                    official_data = json.load(of)
-                except:
-                    official_data = []
-        
+        official_data = _read_json("official_sessions.json")
         merged = data + official_data
-        
-        for s in merged:
-            # Only tag as official if it doesn't already have a session_type, 
-            # but wait, the original code tagged EVERYTHING as official.
-            # Let's tag them based on where they came from.
-            # Actually, the simplest is to leave session_type as is for data, and tag official for official_data.
-            pass
-            
         by_candidate = {}
         for s in merged:
             if s.get('status') == 'in_progress':
@@ -52,8 +32,6 @@ def read_json(filename):
         return merged
         
     elif filename == "reports.json":
-        # Recruiter should only see official reports
-        # Since session_type is not always in reports.json, cross-reference with sessions
         sessions = read_json("sessions.json")
         official_sids = {s['session_id'] for s in sessions if s.get('session_type') == 'official'}
         return [r for r in data if r.get('session_id') in official_sids]
@@ -61,8 +39,7 @@ def read_json(filename):
     return data
 
 def write_json(filename, data):
-    path = os.path.join(DATA_DIR, filename)
-    with open(path, "w") as f: json.dump(data, f, indent=4)
+    _write_json(filename, data)
 
 @router.get("/dashboard/{recruiter_id}")
 async def get_recruiter_dashboard(recruiter_id: str):
@@ -97,7 +74,7 @@ async def get_recruiter_dashboard(recruiter_id: str):
     for s in active_sessions:
         cand = next((c for c in candidates if c['user_id'] == s['candidate_id']), None)
         # Check if a live snapshot exists for this session
-        snapshot_path = f"backend/data/snapshots/{s['session_id']}.jpg"
+        snapshot_path = os.path.join(get_snapshots_dir(), f"{s['session_id']}.jpg")
         has_snapshot = os.path.exists(snapshot_path)
         
         enriched_active.append({
@@ -245,7 +222,7 @@ async def get_active_sessions():
         answers = s.get("answers", [])
         questions = s.get("questions", [])
         violations = s.get("proctoring_violations", [])
-        snapshot_path = f"backend/data/snapshots/{s['session_id']}.jpg"
+        snapshot_path = os.path.join(get_snapshots_dir(), f"{s['session_id']}.jpg")
         has_snapshot = os.path.exists(snapshot_path)
         current_index = s.get("current_question_index", 0)
         total_questions = s.get("total_questions") or len(questions) or 10

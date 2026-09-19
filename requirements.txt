@@ -1,12 +1,10 @@
 fastapi
-uvicorn[standard]
+uvicorn
 pydantic
 pydantic-settings
 email-validator
-spacy
-sentence-transformers
 PyPDF2
 requests
 websockets
-numpy<2.0
 python-multipart
+httpx>=0.24.0

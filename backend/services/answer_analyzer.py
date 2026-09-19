@@ -1,9 +1,19 @@
-from sentence_transformers import SentenceTransformer, util
 import numpy as np
 import json
 from backend.services.llm_client import is_ai_available, call_llm
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
+_transformer_model = None
+
+def get_transformer_model():
+    global _transformer_model
+    if _transformer_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            _transformer_model = SentenceTransformer('all-MiniLM-L6-v2')
+        except Exception as e:
+            print(f"[Answer Analyzer] SentenceTransformer unavailable (serverless/offline fallback): {e}")
+            _transformer_model = False
+    return _transformer_model if _transformer_model is not False else None
 
 def analyze_answer(question_text, answer_text, expected_keywords):
     if not answer_text or len(answer_text.split()) < 5:
@@ -89,8 +99,16 @@ def analyze_answer(question_text, answer_text, expected_keywords):
 
     # 2. Semantic Similarity
     reference = f"The answer to {question_text} involves {', '.join(expected_keywords)}."
-    embeddings = model.encode([answer_text, reference])
-    similarity = float(util.cos_sim(embeddings[0], embeddings[1])[0][0])
+    st_model = get_transformer_model()
+    if st_model:
+        try:
+            from sentence_transformers import util
+            embeddings = st_model.encode([answer_text, reference])
+            similarity = float(util.cos_sim(embeddings[0], embeddings[1])[0][0])
+        except Exception:
+            similarity = coverage
+    else:
+        similarity = coverage
 
     # 3. Detail Score (Word count based)
     word_count = len(answer_text.split())
