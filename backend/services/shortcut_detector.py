@@ -4,9 +4,9 @@ import urllib.request
 import urllib.parse
 import re
 import difflib
-from sentence_transformers import SentenceTransformer, util
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
+_shortcut_model = None
+_template_embeddings = None
 
 # Load from dynamic JSON database file
 TEMPLATE_ANSWERS = []
@@ -16,12 +16,10 @@ try:
     if os.path.exists(TEMPLATE_ANSWERS_FILE):
         with open(TEMPLATE_ANSWERS_FILE, "r") as f:
             data = json.load(f)
-            # Flatten lists of answers under each category/skill
             for answers in data.values():
                 if isinstance(answers, list):
                     TEMPLATE_ANSWERS.extend(answers)
     if not TEMPLATE_ANSWERS:
-        # Fallback to defaults
         TEMPLATE_ANSWERS = [
             "A list is a mutable sequence of objects while a tuple is an immutable sequence.",
             "Hash maps use a hash function to compute an index into an array of buckets.",
@@ -49,16 +47,23 @@ except Exception as e:
         "A primary key uniquely identifies a record while a foreign key links tables together."
     ]
 
-template_embeddings = model.encode(TEMPLATE_ANSWERS)
+def get_shortcut_model():
+    global _shortcut_model, _template_embeddings
+    if _shortcut_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            _shortcut_model = SentenceTransformer('all-MiniLM-L6-v2')
+            _template_embeddings = _shortcut_model.encode(TEMPLATE_ANSWERS)
+        except Exception as e:
+            print(f"[shortcut_detector] SentenceTransformer unavailable (serverless fallback): {e}")
+            _shortcut_model = False
+            _template_embeddings = None
+    return (_shortcut_model, _template_embeddings) if _shortcut_model is not False else (None, None)
 
 # In-memory cache for Wikipedia lookups
 WIKIPEDIA_CACHE = {}
 
 def fetch_wikipedia_summary(query):
-    """
-    Queries the Wikipedia Search and Summary REST API for a technical concept/question.
-    Returns the article summary/definition text.
-    """
     if not query:
         return None
         
@@ -67,7 +72,6 @@ def fetch_wikipedia_summary(query):
         return WIKIPEDIA_CACHE[query_clean]
         
     try:
-        # 1. Search Wikipedia for matching article titles
         search_url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(query_clean)}&utf8=&format=json"
         req = urllib.request.Request(
             search_url, 
@@ -81,7 +85,6 @@ def fetch_wikipedia_summary(query):
                 return None
             best_title = search_results[0]["title"]
             
-        # 2. Get the official summary definition
         summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(best_title.replace(' ', '_'))}"
         req_summary = urllib.request.Request(
             summary_url,
@@ -111,47 +114,47 @@ def check_for_shortcuts(answer_text, skill=None, question_text=None):
     if not answer_text: 
         return {"is_shortcut": False, "confidence": 0}
     
-    # 1. Similarity to templates (local JSON database)
-    ans_emb = model.encode(answer_text)
-    cos_sims = util.cos_sim(ans_emb, template_embeddings)[0]
-    
     max_sim = 0.0
     reason = None
-    
-    # Evaluate candidates against templates with lexical guardrails
-    for idx, sim in enumerate(cos_sims):
-        sim_val = float(sim)
-        if sim_val > 0.70:
-            lex_ratio = word_sequence_similarity(answer_text, TEMPLATE_ANSWERS[idx])
-            # High semantic similarity AND high lexical word sequence overlap (plagiarism)
-            # OR extreme lexical overlap (verbatim copy-paste)
-            if (sim_val > 0.88 and lex_ratio > 0.60) or lex_ratio > 0.75:
-                if sim_val > max_sim:
-                    max_sim = sim_val
-                    reason = "High verbatim similarity to common template"
-
-    # 2. Dynamic Web Lookup (Wikipedia REST API)
     web_sim = 0.0
-    if not reason:
-        # Search either using the question_text or the skill
-        query = question_text if question_text else skill
-        if query:
-            web_def = fetch_wikipedia_summary(query)
-            if web_def:
-                # Compare candidate's answer with Wikipedia definition semantically
-                web_def_emb = model.encode(web_def)
-                web_sim = float(util.cos_sim(ans_emb, web_def_emb)[0][0])
-                
-                # Check actual sequence overlap ratio
-                web_lex_ratio = word_sequence_similarity(answer_text, web_def)
-                
-                # Only flag as plagiarism if there is massive sequence overlap in words, 
-                # protecting students who use relatable technical terms but write in their own voice
-                if (web_sim > 0.86 and web_lex_ratio > 0.55) or web_lex_ratio > 0.70:
-                    max_sim = max(max_sim, web_sim)
-                    reason = "High verbatim similarity to dynamic web definition"
 
-    # 3. Pattern Matching
+    model, template_embs = get_shortcut_model()
+    if model and template_embs is not None:
+        try:
+            from sentence_transformers import util
+            ans_emb = model.encode(answer_text)
+            cos_sims = util.cos_sim(ans_emb, template_embs)[0]
+            for idx, sim in enumerate(cos_sims):
+                sim_val = float(sim)
+                if sim_val > 0.70:
+                    lex_ratio = word_sequence_similarity(answer_text, TEMPLATE_ANSWERS[idx])
+                    if (sim_val > 0.88 and lex_ratio > 0.60) or lex_ratio > 0.75:
+                        if sim_val > max_sim:
+                            max_sim = sim_val
+                            reason = "High verbatim similarity to common template"
+
+            query = question_text if question_text else skill
+            if not reason and query:
+                web_def = fetch_wikipedia_summary(query)
+                if web_def:
+                    web_def_emb = model.encode(web_def)
+                    web_sim = float(util.cos_sim(ans_emb, web_def_emb)[0][0])
+                    web_lex_ratio = word_sequence_similarity(answer_text, web_def)
+                    if (web_sim > 0.86 and web_lex_ratio > 0.55) or web_lex_ratio > 0.70:
+                        max_sim = max(max_sim, web_sim)
+                        reason = "High verbatim similarity to dynamic web definition"
+        except Exception as e:
+            print(f"[shortcut_detector] Transformer similarity check failed: {e}")
+
+    # Fallback text-based plagiarism check if model is unavailable
+    if not model:
+        for template in TEMPLATE_ANSWERS:
+            lex_ratio = word_sequence_similarity(answer_text, template)
+            if lex_ratio > 0.75:
+                max_sim = max(max_sim, lex_ratio)
+                reason = "High verbatim similarity to common template"
+                break
+
     patterns = ["according to", "as mentioned", "the standard approach", "in summary"]
     flag_count = sum(1 for p in patterns if p in answer_text.lower())
     

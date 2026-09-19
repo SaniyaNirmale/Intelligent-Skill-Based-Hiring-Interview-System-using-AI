@@ -8,3 +8,4 @@ httpx>=0.24.0
 pymongo[srv]
 dnspython
 python-dotenv
+numpy
