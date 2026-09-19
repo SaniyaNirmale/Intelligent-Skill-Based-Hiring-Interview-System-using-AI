@@ -29,11 +29,9 @@ def get_mongo_db():
 
     try:
         from pymongo import MongoClient
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
-        client.admin.command('ping')
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000, connect=False)
         _mongo_client = client
         _mongo_db = client[db_name]
-        print(f"[data_utils] Connected to MongoDB Atlas database: {db_name}")
         return _mongo_db
     except Exception as e:
         print(f"[data_utils] MongoDB connection failed: {e}. Using local flat files.")

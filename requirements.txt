@@ -8,6 +8,6 @@ requests
 websockets
 python-multipart
 httpx>=0.24.0
-pymongo
+pymongo[srv]
 dnspython
 python-dotenv

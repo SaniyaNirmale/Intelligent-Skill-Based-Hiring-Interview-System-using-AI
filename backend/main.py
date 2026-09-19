@@ -33,8 +33,9 @@ app.include_router(recruiter.router)
 app.include_router(coding.router)
 
 # Serve Frontend Static Files
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
-app.mount("/frontend", StaticFiles(directory=frontend_path), name="frontend")
+frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+if os.path.exists(frontend_path):
+    app.mount("/frontend", StaticFiles(directory=frontend_path), name="frontend")
 
 from fastapi.responses import RedirectResponse
 
