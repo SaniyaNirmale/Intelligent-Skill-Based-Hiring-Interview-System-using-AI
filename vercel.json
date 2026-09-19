@@ -1,6 +1,6 @@
 {
+  "cleanUrls": true,
   "rewrites": [
-    { "source": "/", "destination": "/frontend/index.html" },
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/auth/(.*)", "destination": "/api/index.py" },
     { "source": "/resume/(.*)", "destination": "/api/index.py" },
