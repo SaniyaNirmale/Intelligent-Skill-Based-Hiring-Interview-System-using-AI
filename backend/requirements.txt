@@ -9,4 +9,3 @@ pymongo
 dnspython
 python-dotenv
 numpy
-mangum
