@@ -102,42 +102,8 @@ async def recruiter_monitor(websocket: WebSocket, session_id: str):
     except WebSocketDisconnect:
         connected_recruiters[session_id].remove(websocket)
 
-# Initialize Data Files
-DATA_FILES = ["candidates.json", "recruiters.json", "sessions.json", "reports.json", "practice_sessions.json", "official_sessions.json", "coding_reports.json", "job_roles.json"]
-data_dir = get_data_dir()
-for f in DATA_FILES:
-    file_path = os.path.join(data_dir, f)
-    if not os.path.exists(file_path):
-        if f == "job_roles.json":
-            default_jobs = [
-                {
-                    "role_id": "job_dev_01",
-                    "title": "Backend Developer",
-                    "description": "Develop scalable backend services, design robust database models, and construct secure high-throughput REST APIs.",
-                    "skills": ["Python", "FastAPI", "SQL"],
-                    "difficulty": "medium",
-                    "num_questions": 10
-                },
-                {
-                    "role_id": "job_mle_02",
-                    "title": "Machine Learning Engineer",
-                    "description": "Architect deep learning pipelines, train neural networks, fine-tune LLMs, and optimize real-time inference.",
-                    "skills": ["Python", "Machine Learning", "PyTorch", "LLMs"],
-                    "difficulty": "hard",
-                    "num_questions": 10
-                },
-                {
-                    "role_id": "job_fed_03",
-                    "title": "Frontend Developer",
-                    "description": "Design sleek, glassmorphic interfaces, establish styling standards, and orchestrate performant SPA components.",
-                    "skills": ["React", "JavaScript", "CSS", "HTML"],
-                    "difficulty": "easy",
-                    "num_questions": 10
-                }
-            ]
-            write_json(f, default_jobs)
-        else:
-            write_json(f, [])
+# Data directory check
+get_data_dir()
 
 if __name__ == "__main__":
     import uvicorn
