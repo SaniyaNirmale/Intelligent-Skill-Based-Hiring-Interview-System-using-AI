@@ -20,10 +20,16 @@
     { "src": "/resume/(.*)", "dest": "/api/index.py" },
     { "src": "/interview/(.*)", "dest": "/api/index.py" },
     { "src": "/report/(.*)", "dest": "/api/index.py" },
-    { "src": "/candidate/(.*)", "dest": "/api/index.py" },
-    { "src": "/recruiter/(.*)", "dest": "/api/index.py" },
     { "src": "/coding/(.*)", "dest": "/api/index.py" },
     { "src": "/frontend/(.*)", "dest": "/frontend/$1" },
+    { "src": "/css/(.*)", "dest": "/frontend/css/$1" },
+    { "src": "/js/(.*)", "dest": "/frontend/js/$1" },
+    { "src": "/assets/(.*)", "dest": "/frontend/assets/$1" },
+    { "src": "/candidate/(.*)\\.html", "dest": "/frontend/candidate/$1.html" },
+    { "src": "/recruiter/(.*)\\.html", "dest": "/frontend/recruiter/$1.html" },
+    { "src": "/login-candidate\\.html", "dest": "/frontend/login-candidate.html" },
+    { "src": "/login-recruiter\\.html", "dest": "/frontend/login-recruiter.html" },
+    { "src": "/register\\.html", "dest": "/frontend/register.html" },
     { "src": "/", "dest": "/frontend/index.html" }
   ]
 }
