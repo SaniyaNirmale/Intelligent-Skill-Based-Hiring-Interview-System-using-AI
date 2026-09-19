@@ -5,7 +5,8 @@ pydantic-settings
 python-multipart
 PyPDF2
 httpx>=0.24.0
-pymongo[srv]
+pymongo
 dnspython
 python-dotenv
 numpy
+mangum

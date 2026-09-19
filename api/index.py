@@ -7,6 +7,7 @@ if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 from backend.main import app
+from mangum import Mangum
 
-# Export for both ASGI and WSGI Vercel serverless runners
-handler = app
+# Wrap FastAPI app with Mangum for Vercel Serverless Function handler execution
+handler = Mangum(app)
