@@ -10,12 +10,26 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python&logoColor=white"/>
   <img src="https://img.shields.io/badge/FastAPI-0.100+-green?style=for-the-badge&logo=fastapi&logoColor=white"/>
   <img src="https://img.shields.io/badge/spaCy-3.7-09a3d5?style=for-the-badge&logo=spacy&logoColor=white"/>
   <img src="https://img.shields.io/badge/Groq-LLM-orange?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/WebSockets-Live-red?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Deployed-Vercel-black?style=for-the-badge&logo=vercel&logoColor=white"/>
 </p>
+
+<p align="center">
+  <a href="https://intelligent-skill-bas-git-034703-saniyanirmale23-8284s-projects.vercel.app/" target="_blank">
+    <img src="https://img.shields.io/badge/🚀%20Live%20Demo-Click%20Here-7C3AED?style=for-the-badge" alt="Live Demo"/>
+  </a>
+</p>
+
+---
+
+## 🌐 Live Demo
+
+> **Try it live →** [https://intelligent-skill-bas-git-034703-saniyanirmale23-8284s-projects.vercel.app/](https://intelligent-skill-bas-git-034703-saniyanirmale23-8284s-projects.vercel.app/)
+
+No installation needed — just open the link and register as a Candidate or Recruiter to explore the full platform.
 
 ---
 
@@ -89,18 +103,18 @@ The system is split into three layers:
 ## 🛠️ Tech Stack
 
 ```
-Backend          FastAPI, Uvicorn, Python 3.11, Pydantic, WebSockets
+Backend          FastAPI, Uvicorn, Python 3.12, Pydantic, Mangum (Vercel serverless)
 NLP / AI         spaCy (en_core_web_sm), SentenceTransformers (all-MiniLM-L6-v2)
 LLM Integration  Groq (llama3), OpenAI (gpt-4), Anthropic Claude (fallback chain)
 Resume Parsing   PyPDF2
 Frontend         HTML5, CSS3, Vanilla JavaScript, Canvas API
-3D Assets        Three.js / GLB models (AI avatar)
-Data Storage     JSON (local flat-file persistence)
+Data Storage     MongoDB Atlas (cloud) + JSON flat-file (local fallback)
+Deployment       Vercel (serverless Python + static frontend)
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Run Locally)
 
 ### 1. Clone the Repository
 ```bash
@@ -118,26 +132,12 @@ pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
-### 4. Configure API Keys
-Create a `.env` file in the root directory:
-```env
-# Groq (Recommended — fast & free tier available)
-GROQ_API_KEY=your_groq_key_here
-
-# OpenAI (fallback)
-OPENAI_API_KEY=your_openai_key_here
-
-# Anthropic (optional fallback)
-ANTHROPIC_API_KEY=your_anthropic_key_here
-```
-> 💡 The system auto-selects the best available provider: **Groq → OpenAI → Anthropic → Offline fallback**
-
-### 5. Run the Server
+### 4. Run the Server
 ```bash
 python -m uvicorn backend.main:app --reload --port 8000
 ```
 
-### 6. Open the App
+### 5. Open the App
 Visit **[http://localhost:8000](http://localhost:8000)** in your browser.
 
 ---
@@ -147,8 +147,12 @@ Visit **[http://localhost:8000](http://localhost:8000)** in your browser.
 ```
 wci-engine/
 │
+├── api/
+│   └── index.py                 # Vercel serverless entry point (Mangum wrapper)
+│
 ├── backend/
 │   ├── main.py                  # FastAPI app entry point + WebSocket handlers
+│   ├── data_utils.py            # MongoDB Atlas + local JSON data layer
 │   ├── routes/
 │   │   ├── auth.py              # Registration & login
 │   │   ├── resume.py            # PDF upload & skill extraction
@@ -157,22 +161,19 @@ wci-engine/
 │   │   ├── candidate.py         # Candidate profile & data
 │   │   ├── recruiter.py         # Recruiter dashboard APIs
 │   │   └── coding.py            # Coding challenge APIs
-│   ├── services/
-│   │   ├── skill_extractor.py   # NLP-based skill extraction from resumes
-│   │   ├── question_engine.py   # Adaptive question generation
-│   │   ├── answer_analyzer.py   # Semantic answer scoring
-│   │   ├── shortcut_detector.py # AI/template response detection
-│   │   ├── scoring_engine.py    # WCI score computation
-│   │   ├── report_generator.py  # Report compilation
-│   │   ├── skill_graph_builder.py # Skill dependency graph
-│   │   ├── coding_engine.py     # Coding test evaluation
-│   │   └── llm_client.py        # Multi-provider LLM abstraction
-│   └── data/                    # JSON flat-file storage (gitignored)
+│   └── services/
+│       ├── skill_extractor.py   # NLP-based skill extraction from resumes
+│       ├── question_engine.py   # Adaptive question generation
+│       ├── answer_analyzer.py   # Semantic answer scoring
+│       ├── shortcut_detector.py # AI/template response detection
+│       ├── scoring_engine.py    # WCI score computation
+│       ├── report_generator.py  # Report compilation
+│       ├── skill_graph_builder.py # Skill dependency graph
+│       ├── coding_engine.py     # Coding test evaluation
+│       └── llm_client.py        # Multi-provider LLM abstraction
 │
 ├── frontend/
-│   ├── index.html               # Landing page
-│   ├── login-candidate.html
-│   ├── login-recruiter.html
+│   ├── index.html               # Landing / Login page
 │   ├── register.html
 │   ├── candidate/               # All candidate-facing pages
 │   │   ├── dashboard.html
@@ -184,7 +185,6 @@ wci-engine/
 │   │   ├── report.html
 │   │   ├── skill-graph.html
 │   │   ├── analytics.html
-│   │   ├── jobs.html
 │   │   └── recommendations.html
 │   └── recruiter/               # All recruiter-facing pages
 │       ├── dashboard.html
@@ -194,9 +194,8 @@ wci-engine/
 │       ├── analytics.html
 │       └── settings.html
 │
-├── assets/readme/               # README images
 ├── requirements.txt
-└── .env.example                 # Environment config template
+└── vercel.json                  # Vercel deployment config
 ```
 
 ---
@@ -222,18 +221,9 @@ Register/Login → Dashboard Overview → Create Job Roles
 
 ## 🌐 API Documentation
 
-Once the server is running, visit the interactive Swagger UI:
+Once the server is running locally, visit the interactive Swagger UI:
 
 **[http://localhost:8000/docs](http://localhost:8000/docs)**
-
----
-
-## ⚠️ Important Notes
-
-- The **`.env` file is gitignored** — never commit API keys to version control
-- First startup may take ~30–60 seconds as AI models load into memory
-- The `backend/data/` folder stores user data locally (also gitignored)
-- If you encounter a `numpy dtype` error, run: `pip install "numpy<2.0" --force-reinstall`
 
 ---
 
