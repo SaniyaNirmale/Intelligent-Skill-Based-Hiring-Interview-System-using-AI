@@ -1,23 +1,13 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/frontend/(.*)",
-      "dest": "/frontend/$1"
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "api/index.py"
-    }
+  "rewrites": [
+    { "source": "/", "destination": "/frontend/index.html" },
+    { "source": "/api/(.*)", "destination": "/api/index.py" },
+    { "source": "/auth/(.*)", "destination": "/api/index.py" },
+    { "source": "/resume/(.*)", "destination": "/api/index.py" },
+    { "source": "/interview/(.*)", "destination": "/api/index.py" },
+    { "source": "/report/(.*)", "destination": "/api/index.py" },
+    { "source": "/candidate/(.*)", "destination": "/api/index.py" },
+    { "source": "/recruiter/(.*)", "destination": "/api/index.py" },
+    { "source": "/coding/(.*)", "destination": "/api/index.py" }
   ]
 }
