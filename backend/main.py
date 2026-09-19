@@ -21,8 +21,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi.staticfiles import StaticFiles
-
 # Mount Routers
 app.include_router(auth.router)
 app.include_router(resume.router)
@@ -32,37 +30,51 @@ app.include_router(candidate.router)
 app.include_router(recruiter.router)
 app.include_router(coding.router)
 
-# Serve Frontend Static Files
-frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
-if os.path.exists(frontend_path):
-    app.mount("/frontend", StaticFiles(directory=frontend_path), name="frontend")
+# Serve Frontend Static Files (only when not running on Vercel serverless)
+IS_VERCEL = bool(os.environ.get("VERCEL"))
 
-from fastapi.responses import RedirectResponse
+if not IS_VERCEL:
+    from fastapi.staticfiles import StaticFiles
+    frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+    if os.path.exists(frontend_path):
+        app.mount("/frontend", StaticFiles(directory=frontend_path), name="frontend")
 
+from fastapi.responses import RedirectResponse, JSONResponse
 from backend.data_utils import read_json, write_json, get_data_dir, get_snapshots_dir
 
 @app.get("/")
 async def root_redirect():
+    if IS_VERCEL:
+        return JSONResponse({"status": "WCI Engine API is running", "version": "1.0", "docs": "/docs"})
     return RedirectResponse(url="/frontend/index.html")
 
 @app.get("/recruiter/snapshot/{session_id}")
 async def get_snapshot(session_id: str):
-    snapshots_dir = get_snapshots_dir()
-    path = os.path.join(snapshots_dir, f"{session_id}.jpg")
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            return Response(content=f.read(), media_type="image/jpeg")
+    try:
+        snapshots_dir = get_snapshots_dir()
+        path = os.path.join(snapshots_dir, f"{session_id}.jpg")
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                return Response(content=f.read(), media_type="image/jpeg")
+    except Exception:
+        pass
     return Response(status_code=404)
 
-# WebSocket State
+# WebSocket State (only active when running locally — Vercel doesn't support WebSockets)
 connected_recruiters = {}
 connected_candidates = {}
 
 @app.websocket("/ws/candidate/{session_id}")
 async def candidate_socket(websocket: WebSocket, session_id: str):
+    if IS_VERCEL:
+        await websocket.close(code=1011, reason="WebSockets not supported on serverless")
+        return
     await websocket.accept()
     connected_candidates[session_id] = websocket
-    snapshots_dir = get_snapshots_dir()
+    try:
+        snapshots_dir = get_snapshots_dir()
+    except Exception:
+        snapshots_dir = "/tmp"
     try:
         while True:
             data = await websocket.receive_json()
@@ -85,6 +97,9 @@ async def candidate_socket(websocket: WebSocket, session_id: str):
 
 @app.websocket("/ws/recruiter/{session_id}")
 async def recruiter_monitor(websocket: WebSocket, session_id: str):
+    if IS_VERCEL:
+        await websocket.close(code=1011, reason="WebSockets not supported on serverless")
+        return
     await websocket.accept()
     if session_id not in connected_recruiters:
         connected_recruiters[session_id] = []
@@ -102,8 +117,12 @@ async def recruiter_monitor(websocket: WebSocket, session_id: str):
     except WebSocketDisconnect:
         connected_recruiters[session_id].remove(websocket)
 
-# Data directory check
-get_data_dir()
+# Initialize data directory only when not on Vercel (avoids cold-boot filesystem errors)
+if not IS_VERCEL:
+    try:
+        get_data_dir()
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     import uvicorn

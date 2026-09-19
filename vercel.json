@@ -1,13 +1,29 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
-    { "source": "/auth/(.*)", "destination": "/api/index.py" },
-    { "source": "/resume/(.*)", "destination": "/api/index.py" },
-    { "source": "/interview/(.*)", "destination": "/api/index.py" },
-    { "source": "/report/(.*)", "destination": "/api/index.py" },
-    { "source": "/candidate/(.*)", "destination": "/api/index.py" },
-    { "source": "/recruiter/(.*)", "destination": "/api/index.py" },
-    { "source": "/coding/(.*)", "destination": "/api/index.py" }
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15MB",
+        "runtime": "python3.11"
+      }
+    },
+    {
+      "src": "frontend/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.py" },
+    { "src": "/auth/(.*)", "dest": "/api/index.py" },
+    { "src": "/resume/(.*)", "dest": "/api/index.py" },
+    { "src": "/interview/(.*)", "dest": "/api/index.py" },
+    { "src": "/report/(.*)", "dest": "/api/index.py" },
+    { "src": "/candidate/(.*)", "dest": "/api/index.py" },
+    { "src": "/recruiter/(.*)", "dest": "/api/index.py" },
+    { "src": "/coding/(.*)", "dest": "/api/index.py" },
+    { "src": "/frontend/(.*)", "dest": "/frontend/$1" },
+    { "src": "/", "dest": "/frontend/index.html" }
   ]
 }
